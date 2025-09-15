@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
 
-type Version = { id: string; title: string; body: string; createdAt?: any }
+type Version = { id: string; title: string; body: string; createdAt?: unknown }
 
 export default function VersionsPage() {
   const params = useParams() as { id: string }
@@ -17,9 +17,14 @@ export default function VersionsPage() {
         const db = getDb()
         if (!db) return
         const snaps = await getDocs(query(collection(db, 'prompts', params.id, 'versions'), orderBy('createdAt', 'desc')))
-        setVersions(snaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load versions')
+        const list = snaps.docs.map(d => {
+          const v = d.data() as { title?: string; body?: string; createdAt?: unknown }
+          return { id: d.id, title: v.title || '', body: v.body || '', createdAt: v.createdAt }
+        }) satisfies Version[]
+        setVersions(list)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load versions'
+        setError(msg)
       }
     }
     load()
@@ -33,8 +38,9 @@ export default function VersionsPage() {
       if (!db || !user) throw new Error('Sign in required')
       await setDoc(doc(db, 'prompts', params.id), { title: v.title, body: v.body, updatedAt: serverTimestamp() }, { merge: true })
       alert('Restored')
-    } catch (e: any) {
-      alert(e.message || 'Failed to restore')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to restore'
+      alert(msg)
     }
   }
 

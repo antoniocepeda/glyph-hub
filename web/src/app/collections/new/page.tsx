@@ -38,7 +38,7 @@ export default function NewCollectionPage() {
       router.push('/collections')
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        setError(err.errors[0]?.message || 'Validation error')
+        setError(err.issues[0]?.message || 'Validation error')
       } else if (err instanceof Error) {
         setError(err.message)
       } else {

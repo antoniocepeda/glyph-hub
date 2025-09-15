@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
       .trim()
       .slice(0, 4000)
     return Response.json({ title, body })
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message || 'fetch failed' }), { status: 500 })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'fetch failed'
+    return new Response(JSON.stringify({ error: msg }), { status: 500 })
   }
 }
 

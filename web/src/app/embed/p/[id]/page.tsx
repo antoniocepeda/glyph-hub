@@ -2,16 +2,23 @@
 import { useEffect, useState } from 'react'
 import { getDb } from '@/lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
+import { useParams } from 'next/navigation'
 
-export default function PromptEmbed({ params }: { params: { id: string } }) {
-  const [data, setData] = useState<any | null>(null)
+type PromptData = { id: string; title: string; body: string }
+
+export default function PromptEmbed() {
+  const params = useParams() as { id: string }
+  const [data, setData] = useState<PromptData | null>(null)
 
   useEffect(() => {
     async function load() {
       const db = getDb()
       if (!db) return
       const snap = await getDoc(doc(db, 'prompts', params.id))
-      if (snap.exists()) setData({ id: snap.id, ...(snap.data() as any) })
+      if (snap.exists()) {
+        const d = snap.data() as { title?: string; body?: string }
+        setData({ id: snap.id, title: d.title || '', body: d.body || '' })
+      }
     }
     load()
   }, [params.id])

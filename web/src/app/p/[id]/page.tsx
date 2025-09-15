@@ -9,7 +9,8 @@ import { copyToClipboard } from '@/lib/utils'
 
 export default function PromptPage() {
   const params = useParams() as { id: string }
-  const [data, setData] = useState<any | null>(null)
+  type PromptData = { id: string; title: string; body: string; tags: string[]; sourceUrl: string | null; visibility: 'public' | 'unlisted' | 'private'; ownerId?: string; forkOf?: string; checksum?: string }
+  const [data, setData] = useState<PromptData | null>(null)
   const [collections, setCollections] = useState<{ id: string; title: string }[]>([])
   const [addStatus, setAddStatus] = useState<string>('')
   const [liked, setLiked] = useState<boolean>(false)
@@ -31,7 +32,18 @@ export default function PromptPage() {
         snap = await getDocFromServer(ref)
       }
       if (snap.exists()) {
-        setData({ id: snap.id, ...(snap.data() as any) })
+        const d = snap.data() as Partial<PromptData>
+        setData({
+          id: snap.id,
+          title: d.title || '',
+          body: d.body || '',
+          tags: d.tags || [],
+          sourceUrl: (d.sourceUrl as string | null) || null,
+          visibility: (d.visibility as 'public' | 'unlisted' | 'private') || 'public',
+          ownerId: d.ownerId,
+          forkOf: d.forkOf,
+          checksum: d.checksum,
+        })
         try {
           await updateDoc(ref, { 'stats.views': increment(1) })
         } catch {}
@@ -41,7 +53,7 @@ export default function PromptPage() {
       const user = auth?.currentUser
       if (user) {
         const snaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', user.uid)))
-        setCollections(snaps.docs.map(d => ({ id: d.id, title: (d.data() as any).title })))
+        setCollections(snaps.docs.map(d => ({ id: d.id, title: (d.data() as { title?: string }).title || '' })))
         const favDoc = await getDoc(doc(db, 'users', user.uid, 'favorites', params.id))
         setLiked(favDoc.exists())
       }
@@ -71,7 +83,7 @@ export default function PromptPage() {
       sourceUrl: data.sourceUrl || null,
       visibility: data.visibility || 'public',
     })
-  }, [data, vars])
+  }, [data, vars, applyVars])
 
   if (!data) return <div className="py-8">Loading…</div>
 
@@ -214,8 +226,9 @@ export default function PromptPage() {
                   addedAt: new Date(),
                 })
                 setAddStatus('Added')
-              } catch (e: any) {
-                setAddStatus(e.message || 'Failed')
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Failed'
+                setAddStatus(msg)
               }
             }}
             defaultValue=""

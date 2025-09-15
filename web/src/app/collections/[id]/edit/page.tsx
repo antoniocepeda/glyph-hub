@@ -24,13 +24,14 @@ export default function EditCollectionPage() {
         if (!db) return
         const snap = await getDoc(doc(db, 'collections', params.id))
         if (snap.exists()) {
-          const data = snap.data() as any
+          const data = snap.data() as { title?: string; visibility?: 'public' | 'private' }
           setForm({ title: data.title || '', visibility: data.visibility || 'private' })
         }
         const itemSnaps = await getDocs(collection(db, 'collections', params.id, 'items'))
-        setItems(itemSnaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load')
+        setItems(itemSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { promptId: string }) })))
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load'
+        setError(msg)
       } finally {
         setLoading(false)
       }
@@ -58,7 +59,7 @@ export default function EditCollectionPage() {
       router.push('/collections')
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        setError(err.errors[0]?.message || 'Validation error')
+        setError(err.issues[0]?.message || 'Validation error')
       } else if (err instanceof Error) {
         setError(err.message)
       } else {
@@ -115,8 +116,9 @@ export default function EditCollectionPage() {
                 if (!db) throw new Error('No DB')
                 const ref = doc(db, 'collections', params.id)
                 await setDoc(ref, { collaborators: { [collabEmail.toLowerCase()]: 'viewer' } }, { merge: true })
-              } catch (e: any) {
-                setCollabError(e.message || 'Failed')
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Failed'
+                setCollabError(msg)
               }
             }}
           >
@@ -131,8 +133,9 @@ export default function EditCollectionPage() {
                 if (!db) throw new Error('No DB')
                 const ref = doc(db, 'collections', params.id)
                 await setDoc(ref, { collaborators: { [collabEmail.toLowerCase()]: 'editor' } }, { merge: true })
-              } catch (e: any) {
-                setCollabError(e.message || 'Failed')
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Failed'
+                setCollabError(msg)
               }
             }}
           >

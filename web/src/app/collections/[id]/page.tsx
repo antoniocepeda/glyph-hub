@@ -18,13 +18,14 @@ export default function PublicCollectionPage() {
         if (!db) return
         const snap = await getDoc(doc(db, 'collections', params.id))
         if (!snap.exists()) { setError('Not found'); return }
-        const data = snap.data() as any
+        const data = snap.data() as { title?: string; visibility?: 'public' | 'private' }
         if (data.visibility !== 'public') { setError('This collection is private'); return }
         setTitle(data.title || 'Collection')
         const itemSnaps = await getDocs(collection(db, 'collections', params.id, 'items'))
-        setItems(itemSnaps.docs.map(d => ({ id: (d.data() as any).promptId || d.id })))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load')
+        setItems(itemSnaps.docs.map(d => ({ id: (d.data() as { promptId?: string }).promptId || d.id })))
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load'
+        setError(msg)
       }
     }
     load()

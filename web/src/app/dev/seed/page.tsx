@@ -59,8 +59,9 @@ export default function SeedPage() {
         })
       }
       setStatus('Seeding complete')
-    } catch (e: any) {
-      setError(e.message || 'Seed failed')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Seed failed'
+      setError(msg)
       setStatus('Failed')
     }
   }

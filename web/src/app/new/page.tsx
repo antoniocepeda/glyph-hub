@@ -23,7 +23,7 @@ export default function NewPromptPage() {
     setError(null)
     setSaving(true)
     try {
-      let auth = getFirebaseAuth()
+      const auth = getFirebaseAuth()
       let user = auth?.currentUser
       if (!user) {
         user = await ensureAnonymousUser()
@@ -56,7 +56,7 @@ export default function NewPromptPage() {
       // TODO: route to /p/[id] after we scaffold it
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        setError(err.errors[0]?.message || 'Validation error')
+        setError(err.issues[0]?.message || 'Validation error')
       } else if (err instanceof Error) {
         setError(err.message)
       } else {

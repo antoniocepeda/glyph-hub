@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Inter, Rajdhani } from "next/font/google";
 import "./globals.css";
 import { AuthMenu as ClientAuthMenu } from "@/components/AuthMenu";
@@ -25,7 +26,7 @@ export default function RootLayout({
         <div className="mx-auto max-w-[1200px] px-6">
           <header className="sticky top-0 z-40 border-b border-[var(--gh-border)] bg-[color:var(--gh-bg)]/80 backdrop-blur supports-[backdrop-filter]:bg-[color:var(--gh-bg)]/60">
             <div className="h-14 flex items-center gap-4">
-              <a href="/" className="font-display">GlyphHub</a>
+              <Link href="/" className="font-display" aria-label="Home">GlyphHub</Link>
               <NavLinks />
               <div className="ml-2 flex items-center gap-2">
                 <span className="text-[var(--gh-text-muted)]">·</span>

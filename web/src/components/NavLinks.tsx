@@ -1,5 +1,6 @@
 "use client"
 import { getFirebaseAuth } from '@/lib/firebase'
+import Link from 'next/link'
 
 export function NavLinks() {
   const user = getFirebaseAuth()?.currentUser
@@ -7,15 +8,15 @@ export function NavLinks() {
     <div className="ml-auto flex items-center gap-2">
       {user && (
         <>
-          <a href="/collections" className="text-sm text-[var(--gh-cyan)]">Collections</a>
+          <Link href="/collections" className="text-sm text-[var(--gh-cyan)]">Collections</Link>
           <span className="text-[var(--gh-text-muted)]">·</span>
         </>
       )}
-      <a href="/trending" className="text-sm text-[var(--gh-cyan)]">Trending</a>
+      <Link href="/trending" className="text-sm text-[var(--gh-cyan)]">Trending</Link>
       <span className="text-[var(--gh-text-muted)]">·</span>
-      <a href="/import" className="text-sm text-[var(--gh-cyan)]">Import</a>
+      <Link href="/import" className="text-sm text-[var(--gh-cyan)]">Import</Link>
       <span className="text-[var(--gh-text-muted)]">·</span>
-      <a href="/help" className="text-sm text-[var(--gh-cyan)]">Help</a>
+      <Link href="/help" className="text-sm text-[var(--gh-cyan)]">Help</Link>
     </div>
   )
 }

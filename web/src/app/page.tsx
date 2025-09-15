@@ -38,11 +38,11 @@ export default function Home() {
         const col = collection(db, 'prompts')
         const qy = query(col, where('visibility', '==', 'public'))
         const snaps = await getDocs(qy)
-        const list = snaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Prompt[]
+        const list = snaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; body: string; tags: string[]; visibility: 'public' | 'unlisted' | 'private' }) })) as Prompt[]
         setPrompts(list)
         // Prefetch top prompt detail pages
         list.slice(0, 6).forEach(p => router.prefetch(`/p/${p.id}`))
-      } catch (e: any) {
+      } catch (e) {
         console.error('Failed to load prompts', e)
         setError('Unable to load prompts yet. Try creating one.')
       }
@@ -150,8 +150,9 @@ function QuickPaste() {
                 updatedAt: serverTimestamp(),
               })
               window.location.href = `/p/${id}`
-            } catch (e: any) {
-              setErr(e.message || 'Failed')
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : 'Failed'
+              setErr(msg)
             } finally {
               setSaving(false)
             }

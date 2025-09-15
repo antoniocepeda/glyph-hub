@@ -22,9 +22,10 @@ export default function CollectionsPage() {
         const user = auth?.currentUser
         if (!db || !user) return
         const snaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', user.uid)))
-        setItems(snaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load collections')
+        setItems(snaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; visibility: 'public' | 'private' }) })))
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load collections'
+        setError(msg)
       }
     }
     load()

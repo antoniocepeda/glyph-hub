@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { z } from 'zod'
 import { PromptSchema, canonicalizePrompt, type PromptInput } from '@/lib/validators'
 
 export default function EditPromptPage() {
@@ -21,7 +20,7 @@ export default function EditPromptPage() {
         if (!db) return
         const snap = await getDoc(doc(db, 'prompts', params.id))
         if (snap.exists()) {
-          const d = snap.data() as any
+          const d = snap.data() as { title?: string; body?: string; tags?: string[]; sourceUrl?: string | null; visibility?: PromptInput['visibility'] }
           setForm({ title: d.title || '', body: d.body || '', tags: d.tags || [], sourceUrl: d.sourceUrl || null, visibility: d.visibility || 'public' })
         }
       } finally {
@@ -49,8 +48,9 @@ export default function EditPromptPage() {
       // Overwrite latest fields
       await setDoc(doc(db, 'prompts', params.id), { ...canonical, updatedAt: serverTimestamp() }, { merge: true })
       router.push(`/p/${params.id}`)
-    } catch (e: any) {
-      setError(e.message || 'Failed to save')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to save'
+      setError(msg)
     } finally {
       setSaving(false)
     }

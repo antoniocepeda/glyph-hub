@@ -6,7 +6,7 @@ import { signOut } from '@/lib/auth'
 
 export function AuthMenu() {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(false)
+  // no local loading state needed
 
   useEffect(() => {
     const auth = getFirebaseAuth()

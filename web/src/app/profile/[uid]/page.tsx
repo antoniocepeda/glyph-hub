@@ -7,9 +7,12 @@ import Link from 'next/link'
 
 export default function ProfilePage() {
   const params = useParams() as { uid: string }
-  const [userDoc, setUserDoc] = useState<any | null>(null)
-  const [prompts, setPrompts] = useState<any[]>([])
-  const [collections, setCollections] = useState<any[]>([])
+  type UserDoc = { displayName?: string }
+  type PromptItem = { id: string; title: string; tags?: string[] }
+  type CollectionItem = { id: string; title: string }
+  const [userDoc, setUserDoc] = useState<UserDoc | null>(null)
+  const [prompts, setPrompts] = useState<PromptItem[]>([])
+  const [collections, setCollections] = useState<CollectionItem[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -18,13 +21,14 @@ export default function ProfilePage() {
         const db = getDb()
         if (!db) return
         const u = await getDoc(doc(db, 'users', params.uid))
-        if (u.exists()) setUserDoc(u.data())
+        if (u.exists()) setUserDoc(u.data() as UserDoc)
         const pSnaps = await getDocs(query(collection(db, 'prompts'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
-        setPrompts(pSnaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
+        setPrompts(pSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[] }) })))
         const cSnaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
-        setCollections(cSnaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load profile')
+        setCollections(cSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string }) })))
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load profile'
+        setError(msg)
       }
     }
     load()

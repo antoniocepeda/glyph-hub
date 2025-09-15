@@ -30,15 +30,16 @@ export default function TrendingPage() {
         const db = getDb()
         if (!db) return
         const snaps = await getDocs(query(collection(db, 'prompts'), where('visibility', '==', 'public')))
-        const list = snaps.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Prompt[]
+        const list = snaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; body: string; tags: string[]; stats?: Prompt['stats'] }) })) as Prompt[]
         setPrompts(list)
         list.slice(0, 9).forEach(p => router.prefetch(`/p/${p.id}`))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load trending')
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load trending'
+        setError(msg)
       }
     }
     load()
-  }, [])
+  }, [router])
 
   const ranked = useMemo(() => prompts.slice().sort((a, b) => engagementScore(b) - engagementScore(a)), [prompts])
 

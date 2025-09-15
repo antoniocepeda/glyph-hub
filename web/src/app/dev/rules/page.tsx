@@ -1,7 +1,7 @@
 "use client"
 import { useState } from 'react'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
-import { addDoc, collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 
 export default function RulesTestPage() {
   const [status, setStatus] = useState<string>('Idle')
@@ -16,8 +16,9 @@ export default function RulesTestPage() {
       const ref = doc(db, 'prompts', 'welcome-1')
       await getDoc(ref)
       setStatus('Public read OK')
-    } catch (e: any) {
-      setError(e.message || 'Public read failed')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Public read failed'
+      setError(msg)
       setStatus('Failed')
     }
   }
@@ -45,8 +46,9 @@ export default function RulesTestPage() {
         updatedAt: serverTimestamp(),
       })
       setStatus('Owner write OK')
-    } catch (e: any) {
-      setError(e.message || 'Owner write failed')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Owner write failed'
+      setError(msg)
       setStatus('Failed')
     }
   }
@@ -71,7 +73,7 @@ export default function RulesTestPage() {
         updatedAt: serverTimestamp(),
       })
       setStatus('Unexpectedly succeeded')
-    } catch (e: any) {
+    } catch (e) {
       setStatus('Unauthorized write correctly blocked')
     }
   }

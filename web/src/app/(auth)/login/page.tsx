@@ -15,8 +15,9 @@ export default function LoginPage() {
     setError(null)
     try {
       await signInWithEmailPassword(email, password)
-    } catch (e: any) {
-      setError(e.message || 'Failed to sign in')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to sign in'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -27,8 +28,9 @@ export default function LoginPage() {
     setError(null)
     try {
       await registerWithEmailPassword(email, password)
-    } catch (e: any) {
-      setError(e.message || 'Failed to register')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to register'
+      setError(msg)
     } finally {
       setLoading(false)
     }

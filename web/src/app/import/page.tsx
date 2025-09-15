@@ -25,8 +25,9 @@ export default function ImportPage() {
       }
       sessionStorage.setItem('gh_new_prompt_draft', JSON.stringify(draft))
       router.push('/new')
-    } catch (e: any) {
-      setError(e.message || 'Failed')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed'
+      setError(msg)
     } finally {
       setLoading(false)
     }

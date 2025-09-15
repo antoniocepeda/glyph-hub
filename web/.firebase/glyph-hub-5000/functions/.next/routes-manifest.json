@@ -1,0 +1,184 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/collections/[id]",
+      "regex": "^/collections/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/collections/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/collections/[id]/edit",
+      "regex": "^/collections/([^/]+?)/edit(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/collections/(?<nxtPid>[^/]+?)/edit(?:/)?$"
+    },
+    {
+      "page": "/embed/p/[id]",
+      "regex": "^/embed/p/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/embed/p/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/help/[slug]",
+      "regex": "^/help/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/help/(?<nxtPslug>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/p/[id]",
+      "regex": "^/p/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/p/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/p/[id]/edit",
+      "regex": "^/p/([^/]+?)/edit(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/p/(?<nxtPid>[^/]+?)/edit(?:/)?$"
+    },
+    {
+      "page": "/p/[id]/versions",
+      "regex": "^/p/([^/]+?)/versions(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/p/(?<nxtPid>[^/]+?)/versions(?:/)?$"
+    },
+    {
+      "page": "/profile/[uid]",
+      "regex": "^/profile/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPuid": "nxtPuid"
+      },
+      "namedRegex": "^/profile/(?<nxtPuid>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/collections",
+      "regex": "^/collections(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/collections(?:/)?$"
+    },
+    {
+      "page": "/collections/new",
+      "regex": "^/collections/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/collections/new(?:/)?$"
+    },
+    {
+      "page": "/dev/perf",
+      "regex": "^/dev/perf(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dev/perf(?:/)?$"
+    },
+    {
+      "page": "/dev/rules",
+      "regex": "^/dev/rules(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dev/rules(?:/)?$"
+    },
+    {
+      "page": "/dev/seed",
+      "regex": "^/dev/seed(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dev/seed(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/help",
+      "regex": "^/help(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/help(?:/)?$"
+    },
+    {
+      "page": "/import",
+      "regex": "^/import(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/import(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/new",
+      "regex": "^/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/new(?:/)?$"
+    },
+    {
+      "page": "/trending",
+      "regex": "^/trending(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/trending(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
