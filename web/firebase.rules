@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    function getUser(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    match /prompts/{id} {
+      function validPromptData(data) {
+        return data.title is string && size(data.title) > 0 && size(data.title) <= 200 &&
+               data.body is string && size(data.body) > 0 && size(data.body) <= 5000 &&
+               data.tags is list &&
+               (data.sourceUrl == null || data.sourceUrl is string) &&
+               data.visibility in ['public', 'unlisted', 'private'] &&
+               data.ownerId is string &&
+               data.stats.views >= 0 && data.stats.copies >= 0 && data.stats.likes >= 0;
+      }
+
+      function onlyStatsChanged(before, after) {
+        return after.diff(before).changedKeys().hasOnly(['stats', 'updatedAt']);
+      }
+
+      function statsChangeAllowed(before, after) {
+        return after.stats.views >= before.stats.views &&
+               after.stats.copies >= before.stats.copies &&
+               // likes may go up or down by 1
+               (after.stats.likes == before.stats.likes ||
+                after.stats.likes == before.stats.likes + 1 ||
+                after.stats.likes == before.stats.likes - 1);
+      }
+
+      allow read: if resource.data.visibility == 'public' ||
+                   (resource.data.visibility == 'unlisted' && request.time != null) ||
+                   isOwner(resource.data.ownerId);
+
+      allow create: if isSignedIn() &&
+                    request.resource.data.ownerId == request.auth.uid &&
+                    validPromptData(request.resource.data) &&
+                    (
+                      // Require at least 60s since user's lastCreateAt (if present)
+                      getUser(request.auth.uid).data.lastCreateAt == null ||
+                      request.time > getUser(request.auth.uid).data.lastCreateAt + duration.value(60, 's')
+                    );
+      allow update: if (
+        // owner full edit but ownerId cannot change
+        (isOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId && validPromptData(request.resource.data)) ||
+        // or allow public stats increments
+        (onlyStatsChanged(resource.data, request.resource.data) && statsChangeAllowed(resource.data, request.resource.data))
+      );
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    // Prompt versions
+    match /prompts/{id}/versions/{versionId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+    }
+
+    match /users/{uid} {
+      allow read: if true;
+      allow create, update: if isOwner(uid);
+    }
+
+    match /collections/{id} {
+      allow read: if resource.data.visibility == 'public' || isOwner(resource.data.ownerId) || isCollaborator(id);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.ownerId) || isEditor(id);
+    }
+
+    // Items within a collection
+    function getCollectionDoc(id) {
+      return get(/databases/$(database)/documents/collections/$(id));
+    }
+    function collectionIsOwner(id) {
+      return isSignedIn() && getCollectionDoc(id).data.ownerId == request.auth.uid;
+    }
+    function collectionIsPublic(id) {
+      return getCollectionDoc(id).data.visibility == 'public';
+    }
+    function isCollaborator(id) {
+      return isSignedIn() && (getCollectionDoc(id).data.ownerId == request.auth.uid || getCollectionDoc(id).data.collaborators[request.auth.uid] in ['viewer','editor']);
+    }
+    function isEditor(id) {
+      return isSignedIn() && (getCollectionDoc(id).data.ownerId == request.auth.uid || getCollectionDoc(id).data.collaborators[request.auth.uid] == 'editor');
+    }
+
+    match /collections/{id}/items/{promptId} {
+      allow read: if collectionIsPublic(id) || collectionIsOwner(id) || isCollaborator(id);
+      allow create, update, delete: if collectionIsOwner(id) || isEditor(id);
+    }
+
+    // User favorites: users/{uid}/favorites/{promptId}
+    match /users/{uid}/favorites/{promptId} {
+      allow read: if true; // favorites list can be public or later restricted
+      allow create, update, delete: if isOwner(uid);
+    }
+  }
+}
+
