@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
@@ -14,6 +14,7 @@ export default function ProfilePage() {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null)
   const [prompts, setPrompts] = useState<PromptItem[]>([])
   const [myDrafts, setMyDrafts] = useState<PromptItem[]>([])
+  const [liked, setLiked] = useState<PromptItem[]>([])
   const [collections, setCollections] = useState<CollectionItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [authUid, setAuthUid] = useState<string | null>(null)
@@ -46,6 +47,28 @@ export default function ProfilePage() {
         } else {
           setMyDrafts([])
         }
+        // Liked prompts (public) via users/{uid}/favorites subcollection
+        try {
+          const favSnaps = await getDocs(collection(db, 'users', params.uid, 'favorites'))
+          const favIds = favSnaps.docs.map(d => d.id)
+          if (favIds.length > 0) {
+            // Firestore IN limited to 10; simple batching
+            const batches: string[][] = []
+            for (let i = 0; i < favIds.length; i += 10) batches.push(favIds.slice(i, i + 10))
+            const results: PromptItem[] = []
+            for (const b of batches) {
+              const snaps = await getDocs(query(collection(db, 'prompts'), where('__name__', 'in', b)))
+              for (const d of snaps.docs) {
+                const data = d.data() as { title?: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }
+                if (data.visibility === 'public') results.push({ id: d.id, title: data.title || '', tags: data.tags || [], visibility: data.visibility })
+              }
+            }
+            setLiked(results)
+          } else {
+            setLiked([])
+          }
+        } catch {}
+
         const cSnaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
         setCollections(cSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string }) })))
       } catch (e) {
@@ -120,6 +143,17 @@ export default function ProfilePage() {
           </div>
         </>
       )}
+
+      <h2 className="font-display text-xl mt-8 mb-3">Liked Prompts</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {liked.map(p => (
+          <Link key={p.id} href={`/p/${p.id}`} className="rounded-[14px] p-4 bg-[var(--gh-surface)] border border-[var(--gh-border)]">
+            <div className="font-medium">{p.title}</div>
+            <div className="text-xs text-[var(--gh-text-muted)]">{(p.tags || []).join(', ')}</div>
+          </Link>
+        ))}
+        {liked.length === 0 && <div className="text-sm text-[var(--gh-text-muted)]">No likes yet.</div>}
+      </div>
 
       <h2 className="font-display text-xl mt-8 mb-3">Public Collections</h2>
       <div className="grid gap-3 sm:grid-cols-2">
