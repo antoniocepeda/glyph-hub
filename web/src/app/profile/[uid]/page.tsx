@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 import Link from 'next/link'
-import { updateProfile } from 'firebase/auth'
+import { onIdTokenChanged, updateProfile } from 'firebase/auth'
 
 export default function ProfilePage() {
   const params = useParams() as { uid: string }
@@ -16,9 +16,18 @@ export default function ProfilePage() {
   const [myDrafts, setMyDrafts] = useState<PromptItem[]>([])
   const [collections, setCollections] = useState<CollectionItem[]>([])
   const [error, setError] = useState<string | null>(null)
-  const myUid = useMemo(() => getFirebaseAuth()?.currentUser?.uid || null, [])
-  const isOwner = myUid === params.uid
+  const [authUid, setAuthUid] = useState<string | null>(null)
+  const isOwner = authUid === params.uid
   const [editing, setEditing] = useState(false)
+
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    setAuthUid(auth?.currentUser?.uid || null)
+    if (auth) {
+      const unsub = onIdTokenChanged(auth, (u) => setAuthUid(u?.uid || null))
+      return () => unsub()
+    }
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -30,8 +39,7 @@ export default function ProfilePage() {
         const pSnaps = await getDocs(query(collection(db, 'prompts'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
         setPrompts(pSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }) })))
         // If viewing my own profile, also load my private/unlisted prompts (e.g., forks)
-        const myUidNow = getFirebaseAuth()?.currentUser?.uid
-        if (myUidNow && myUidNow === params.uid) {
+        if (authUid && authUid === params.uid) {
           const mineSnaps = await getDocs(query(collection(db, 'prompts'), where('ownerId', '==', params.uid)))
           const allMine = mineSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }) })) as PromptItem[]
           setMyDrafts(allMine.filter(p => p.visibility !== 'public'))
@@ -46,7 +54,7 @@ export default function ProfilePage() {
       }
     }
     load()
-  }, [params.uid])
+  }, [params.uid, authUid])
 
   if (error) return <div className="mx-auto max-w-[900px] py-8 text-red-400 text-sm">{error}</div>
 
