@@ -125,7 +125,7 @@ function QuickPaste() {
   return (
     <div className="rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)] p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="font-display">Quick Paste</div>
+        <div className="font-display">New Prompt</div>
         <button type="button" onClick={() => setAdvanced(v => !v)} className="text-xs text-[var(--gh-cyan)]">
           {advanced ? 'Basic' : 'Advanced'}
         </button>
