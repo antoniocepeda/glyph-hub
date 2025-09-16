@@ -142,7 +142,10 @@ export default function PromptPage() {
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid
-            if (uid && data.ownerId === uid) {
+            const email = auth?.currentUser?.email || ''
+            const canEdit = Boolean(uid && data.ownerId === uid)
+            const canDelete = canEdit || email === 'outersloth@gmail.com'
+            if (canEdit) {
               return (
                 <>
                   <Link href={`/p/${params.id}/edit`} className="text-[var(--gh-cyan)]">Edit</Link>
@@ -151,6 +154,30 @@ export default function PromptPage() {
               )
             }
             return null
+          })()}
+          {(() => {
+            const auth = getFirebaseAuth()
+            const uid = auth?.currentUser?.uid
+            const email = auth?.currentUser?.email || ''
+            const canDelete = Boolean(uid && (data.ownerId === uid || email === 'outersloth@gmail.com'))
+            if (!canDelete) return null
+            return (
+              <button
+                onClick={async () => {
+                  if (!confirm('Delete this prompt? This cannot be undone.')) return
+                  try {
+                    const db = getDb()
+                    if (!db) return
+                    await deleteDoc(doc(db, 'prompts', params.id))
+                    window.location.href = '/'
+                  } catch {}
+                }}
+                className="text-red-400"
+                type="button"
+              >
+                Delete
+              </button>
+            )
           })()}
           {isSignedIn && (
           <button

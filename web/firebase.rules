@@ -10,6 +10,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == ownerId;
     }
 
+    function isSuperUser() {
+      // Superuser email hardcoded: outersloth@gmail.com
+      return isSignedIn() && request.auth.token.email == 'outersloth@gmail.com';
+    }
+
     function getUser(uid) {
       return get(/databases/$(database)/documents/users/$(uid));
     }
@@ -60,7 +65,7 @@ service cloud.firestore {
         // allow stats increments only for signed-in users
         (isSignedIn() && onlyStatsChanged(resource.data, request.resource.data) && statsChangeAllowed(resource.data, request.resource.data))
       );
-      allow delete: if isOwner(resource.data.ownerId);
+      allow delete: if isOwner(resource.data.ownerId) || isSuperUser();
     }
 
     // Prompt versions
