@@ -78,7 +78,6 @@ export default function PublicPromptsPage() {
     <div className="mx-auto max-w-[900px] py-8">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-display text-2xl">Public Prompts</h1>
-        <Link href="/new" className="text-sm text-[var(--gh-cyan)]">New</Link>
       </div>
       {error && <p className="text-sm text-red-400 mb-2">{error}</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

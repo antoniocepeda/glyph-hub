@@ -110,18 +110,6 @@
       "namedRegex": "^/collections/new(?:/)?$"
     },
     {
-      "page": "/dev/perf",
-      "regex": "^/dev/perf(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/dev/perf(?:/)?$"
-    },
-    {
-      "page": "/dev/rules",
-      "regex": "^/dev/rules(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/dev/rules(?:/)?$"
-    },
-    {
       "page": "/favicon.ico",
       "regex": "^/favicon\\.ico(?:/)?$",
       "routeKeys": {},
@@ -144,6 +132,12 @@
       "regex": "^/new(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/new(?:/)?$"
+    },
+    {
+      "page": "/public",
+      "regex": "^/public(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/public(?:/)?$"
     },
     {
       "page": "/settings",

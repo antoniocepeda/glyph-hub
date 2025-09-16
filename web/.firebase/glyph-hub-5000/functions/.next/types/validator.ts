@@ -92,24 +92,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../src/app/dev/perf/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/dev/perf">> = Specific
-  const handler = {} as typeof import("../../src/app/dev/perf/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../src/app/dev/rules/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/dev/rules">> = Specific
-  const handler = {} as typeof import("../../src/app/dev/rules/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../src/app/embed/p/[id]/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/embed/p/[id]">> = Specific
@@ -191,6 +173,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/public/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/public">> = Specific
+  const handler = {} as typeof import("../../src/app/public/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/settings/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/settings">> = Specific
@@ -213,15 +204,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/extract">> = Specific
   const handler = {} as typeof import("../../src/app/api/extract/route.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../src/app/api/prompts/route.ts
-{
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/prompts">> = Specific
-  const handler = {} as typeof import("../../src/app/api/prompts/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
