@@ -29,6 +29,7 @@ export default function RootLayout({
               <Link href="/" className="font-display" aria-label="Home">GlyphHub</Link>
               <div className="ml-auto flex items-center gap-3">
                 <Link href="/public" className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Public</Link>
+                <Link href="/help" className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Help</Link>
                 <NavLinks />
                 <ClientAuthMenu />
               </div>
