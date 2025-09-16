@@ -53,7 +53,7 @@ export default function Home() {
 
   return (
     <div>
-      <section className="mt-6 mb-8">
+      <section className="mt-8 mb-8">
         <QuickPaste />
       </section>
       {topThree.length > 0 && (
