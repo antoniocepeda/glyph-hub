@@ -23,20 +23,19 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${rajdhani.variable} antialiased bg-[var(--gh-bg)] text-[var(--gh-text)]`}>
         <AuthInit />
-        <div className="mx-auto max-w-[1200px] px-6">
+        <div className="mx-auto max-w-[1200px] px-6 min-h-[100svh] flex flex-col">
           <header className="sticky top-0 z-40 border-b border-[var(--gh-border)] bg-[color:var(--gh-bg)]/80 backdrop-blur supports-[backdrop-filter]:bg-[color:var(--gh-bg)]/60">
             <div className="h-14 flex items-center gap-4">
               <Link href="/" className="font-display" aria-label="Home">GlyphHub</Link>
               <NavLinks />
-              <div className="ml-2 flex items-center gap-2">
-                <span className="text-[var(--gh-text-muted)]">·</span>
+              <div className="ml-auto flex items-center gap-3">
                 <ClientAuthMenu />
               </div>
             </div>
           </header>
-          <main className="py-8">{children}</main>
-          <footer className="border-t border-[var(--gh-border)] text-[var(--gh-text-muted)]">
-            <div className="py-6 text-sm">© GlyphHub</div>
+          <main className="py-6 flex-1">{children}</main>
+          <footer className="mt-auto border-t border-[var(--gh-border)] text-[var(--gh-text-muted)]">
+            <div className="py-3 text-sm">© GlyphHub</div>
           </footer>
         </div>
       </body>

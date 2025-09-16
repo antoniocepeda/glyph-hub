@@ -1,14 +1,14 @@
 "use client"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { PromptSchema, type PromptInput, canonicalizePrompt } from '@/lib/validators'
 import { computeChecksum } from '@/lib/checksum'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 import { customAlphabet } from 'nanoid'
 import { encodeShareCode } from '@/lib/share-code'
 import { containsBannedWords } from '@/lib/utils'
-import { ensureAnonymousUser } from '@/lib/auth'
+// Anonymous auth disabled in production; require sign-in
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)
 
@@ -18,17 +18,36 @@ export default function NewPromptPage() {
   const [saving, setSaving] = useState(false)
   const [shareCode, setShareCode] = useState<string | null>(null)
 
+  // Load default visibility from user preferences
+  useEffect(() => {
+    async function loadPref() {
+      const auth = getFirebaseAuth()
+      const uid = auth?.currentUser?.uid
+      if (!uid) return
+      const db = getDb()
+      if (!db) return
+      try {
+        const docSnap = await getDoc(doc(db, 'users', uid))
+        if (docSnap.exists()) {
+          const data = docSnap.data() as { preferences?: { defaultVisibility?: 'public' | 'unlisted' | 'private' } }
+          const pref = data.preferences
+          const nextVis = pref?.defaultVisibility
+          if (nextVis && (['public','unlisted','private'] as const).includes(nextVis)) {
+            setForm(f => ({ ...f, visibility: nextVis }))
+          }
+        }
+      } catch {}
+    }
+    loadPref()
+  }, [])
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setSaving(true)
     try {
       const auth = getFirebaseAuth()
-      let user = auth?.currentUser
-      if (!user) {
-        user = await ensureAnonymousUser()
-      }
-      if (!user) { setError('Unable to create prompt. Sign in or enable anonymous auth.'); return }
+      const user = auth?.currentUser
       const parsed = PromptSchema.parse(form)
       const canonical = canonicalizePrompt(parsed)
       const checksum = computeChecksum(canonical.body)
@@ -37,20 +56,34 @@ export default function NewPromptPage() {
       const id = nanoid()
       const db = getDb()
       if (!db) throw new Error('Firebase is not configured. Add .env.local')
-      // Deduplication: check if a prompt with same checksum exists
-      const dup = await getDocs(query(collection(db, 'prompts'), where('checksum', '==', checksum)))
-      if (!dup.empty) throw new Error('A similar prompt already exists. Consider forking it.')
-      const ref = doc(collection(db, 'prompts'), id)
-      await setDoc(ref, {
-        ...canonical,
-        ownerId: user.uid,
-        checksum,
-        stats: { views: 0, copies: 0, likes: 0 },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-      // Update user's lastCreateAt for simple per-user rate limiting in rules
-      await setDoc(doc(db, 'users', user.uid), { lastCreateAt: serverTimestamp() }, { merge: true })
+      // Deduplication: only check client-side if signed-in (rules allow owner read)
+      if (user) {
+        const dup = await getDocs(query(collection(db, 'prompts'), where('checksum', '==', checksum)))
+        if (!dup.empty) throw new Error('A similar prompt already exists. Consider forking it.')
+      }
+      if (!user) {
+        const ref = doc(collection(db, 'prompts'), id)
+        await setDoc(ref, {
+          ...canonical,
+          ownerId: 'anon',
+          checksum,
+          stats: { views: 0, copies: 0, likes: 0 },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      } else {
+        const ref = doc(collection(db, 'prompts'), id)
+        await setDoc(ref, {
+          ...canonical,
+          ownerId: user.uid,
+          checksum,
+          stats: { views: 0, copies: 0, likes: 0 },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      }
+      // Update user's lastCreateAt for simple per-user rate limiting in rules (only if signed-in)
+      if (user) await setDoc(doc(db, 'users', user.uid), { lastCreateAt: serverTimestamp() }, { merge: true })
       const code = encodeShareCode(canonical)
       setShareCode(code)
       // TODO: route to /p/[id] after we scaffold it

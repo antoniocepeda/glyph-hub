@@ -16,8 +16,8 @@ service cloud.firestore {
 
     match /prompts/{id} {
       function validPromptData(data) {
-        return data.title is string && size(data.title) > 0 && size(data.title) <= 200 &&
-               data.body is string && size(data.body) > 0 && size(data.body) <= 5000 &&
+        return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               data.body is string && data.body.size() > 0 && data.body.size() <= 5000 &&
                data.tags is list &&
                (data.sourceUrl == null || data.sourceUrl is string) &&
                data.visibility in ['public', 'unlisted', 'private'] &&
@@ -42,19 +42,29 @@ service cloud.firestore {
                    (resource.data.visibility == 'unlisted' && request.time != null) ||
                    isOwner(resource.data.ownerId);
 
-      allow create: if isSignedIn() &&
-                    request.resource.data.ownerId == request.auth.uid &&
-                    validPromptData(request.resource.data) &&
-                    (
-                      // Require at least 60s since user's lastCreateAt (if present)
-                      getUser(request.auth.uid).data.lastCreateAt == null ||
-                      request.time > getUser(request.auth.uid).data.lastCreateAt + duration.value(60, 's')
+      allow create: if (
+                      // Authenticated user may create with full validation and simple cooldown
+                      isSignedIn() &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      validPromptData(request.resource.data) &&
+                      (
+                        // Allow if user doc is missing OR lastCreateAt missing OR cooldown elapsed
+                        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastCreateAt == null ||
+                        request.time > get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastCreateAt + duration.value(60, 's')
+                      )
+                    ) || (
+                      // Unauthenticated users can post only public or unlisted prompts under ownerId 'anon'
+                      !isSignedIn() &&
+                      request.resource.data.ownerId == 'anon' &&
+                      request.resource.data.visibility in ['public', 'unlisted'] &&
+                      validPromptData(request.resource.data)
                     );
       allow update: if (
         // owner full edit but ownerId cannot change
         (isOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId && validPromptData(request.resource.data)) ||
-        // or allow public stats increments
-        (onlyStatsChanged(resource.data, request.resource.data) && statsChangeAllowed(resource.data, request.resource.data))
+        // allow stats increments only for signed-in users
+        (isSignedIn() && onlyStatsChanged(resource.data, request.resource.data) && statsChangeAllowed(resource.data, request.resource.data))
       );
       allow delete: if isOwner(resource.data.ownerId);
     }

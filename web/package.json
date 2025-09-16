@@ -10,13 +10,14 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "firebase deploy --only hosting,firestore:rules,storage:rules"
+    "deploy": "firebase deploy --only hosting,firestore:rules,storage"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crc-32": "^1.2.2",
     "firebase": "^12.2.1",
+    "firebase-admin": "^12",
     "lucide-react": "^0.544.0",
     "nanoid": "^5.1.5",
     "next": "15.5.3",

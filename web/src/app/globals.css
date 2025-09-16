@@ -151,3 +151,13 @@
 
 .font-display { font-family: var(--font-rajdhani), ui-sans-serif, system-ui; }
 .font-sans { font-family: var(--font-inter), ui-sans-serif, system-ui; }
+
+/* Hide page scrollbar across browsers while preserving scroll */
+html, body {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

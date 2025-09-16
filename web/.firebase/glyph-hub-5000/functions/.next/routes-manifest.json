@@ -122,12 +122,6 @@
       "namedRegex": "^/dev/rules(?:/)?$"
     },
     {
-      "page": "/dev/seed",
-      "regex": "^/dev/seed(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/dev/seed(?:/)?$"
-    },
-    {
       "page": "/favicon.ico",
       "regex": "^/favicon\\.ico(?:/)?$",
       "routeKeys": {},
@@ -140,12 +134,6 @@
       "namedRegex": "^/help(?:/)?$"
     },
     {
-      "page": "/import",
-      "regex": "^/import(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/import(?:/)?$"
-    },
-    {
       "page": "/login",
       "regex": "^/login(?:/)?$",
       "routeKeys": {},
@@ -156,6 +144,12 @@
       "regex": "^/new(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/new(?:/)?$"
+    },
+    {
+      "page": "/settings",
+      "regex": "^/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settings(?:/)?$"
     },
     {
       "page": "/trending",

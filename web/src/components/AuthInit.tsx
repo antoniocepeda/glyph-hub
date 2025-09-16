@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { browserLocalPersistence, setPersistence } from 'firebase/auth'
+import { ThemeClient } from './ThemeClient'
 
 export function AuthInit() {
   useEffect(() => {
@@ -15,7 +16,7 @@ export function AuthInit() {
     }
     // No redirect completion needed without Google login
   }, [])
-  return null
+  return <ThemeClient />
 }
 
 
