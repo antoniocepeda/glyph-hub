@@ -44,17 +44,14 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-[900px] py-8">
       <div className="flex items-center justify-between mb-2">
         <h1 className="font-display text-2xl">{userDoc?.displayName || 'User'}</h1>
-        <div className="flex items-center gap-2">
-          <Link href="/help" className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Help</Link>
-          {isOwner && (
-            <button
-              onClick={() => setEditing(v => !v)}
-              className="rounded-[10px] px-3 py-2 text-sm border border-[var(--gh-border)]"
-            >
-              {editing ? 'Close editor' : 'Edit profile'}
-            </button>
-          )}
-        </div>
+        {isOwner && (
+          <button
+            onClick={() => setEditing(v => !v)}
+            className="rounded-[10px] px-3 py-2 text-sm border border-[var(--gh-border)]"
+          >
+            {editing ? 'Close editor' : 'Edit profile'}
+          </button>
+        )}
       </div>
 
       {/* Profile details (read-only) */}
