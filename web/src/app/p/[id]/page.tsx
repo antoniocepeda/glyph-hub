@@ -149,7 +149,7 @@ export default function PromptPage() {
             >
             {copied === 'embed' ? 'Copied' : 'Copy Embed'}
           </button>
-          <Link href={`/p/${params.id}`} className="text-[var(--gh-cyan)]">Share URL</Link>
+          <Link href={`/p/${params.id}`} className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Share URL</Link>
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid
@@ -165,30 +165,6 @@ export default function PromptPage() {
               )
             }
             return null
-          })()}
-          {(() => {
-            const auth = getFirebaseAuth()
-            const uid = auth?.currentUser?.uid
-            const email = auth?.currentUser?.email || ''
-            const canDelete = Boolean(uid && (data.ownerId === uid || email === 'outersloth@gmail.com'))
-            if (!canDelete) return null
-            return (
-              <button
-                onClick={async () => {
-                  if (!confirm('Delete this prompt? This cannot be undone.')) return
-                  try {
-                    const db = getDb()
-                    if (!db) return
-                    await deleteDoc(doc(db, 'prompts', params.id))
-                    window.location.href = '/'
-                  } catch {}
-                }}
-                className="text-red-400"
-                type="button"
-              >
-                Delete
-              </button>
-            )
           })()}
           {isSignedIn && (
           <button
@@ -210,7 +186,7 @@ export default function PromptPage() {
                 }
               } catch {}
             }}
-            className="text-[var(--gh-cyan)] pointer-events-auto"
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] pointer-events-auto"
           >
             {liked ? '★ Liked' : '☆ Like'}
           </button>
@@ -240,11 +216,35 @@ export default function PromptPage() {
                 window.location.href = `/p/${newRef.id}`
               } catch {}
             }}
-            className="text-[var(--gh-cyan)] pointer-events-auto"
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] pointer-events-auto"
           >
             Fork
           </button>
           )}
+          {(() => {
+            const auth = getFirebaseAuth()
+            const uid = auth?.currentUser?.uid
+            const email = auth?.currentUser?.email || ''
+            const canDelete = Boolean(uid && (data.ownerId === uid || email === 'outersloth@gmail.com'))
+            if (!canDelete) return null
+            return (
+              <button
+                onClick={async () => {
+                  if (!confirm('Delete this prompt? This cannot be undone.')) return
+                  try {
+                    const db = getDb()
+                    if (!db) return
+                    await deleteDoc(doc(db, 'prompts', params.id))
+                    window.location.href = '/'
+                  } catch {}
+                }}
+                className="text-red-400 ml-2"
+                type="button"
+              >
+                Delete
+              </button>
+            )
+          })()}
         </div>
       </div>
       {isSignedIn && collections.length > 0 && (
