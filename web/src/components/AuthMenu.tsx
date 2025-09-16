@@ -25,7 +25,7 @@ export function AuthMenu() {
   if (!user) {
     return (
       <div className="flex items-center gap-2">
-        <a href="/login" className="text-sm text-[var(--gh-cyan)]">Sign in</a>
+        <a href="/login" className="inline-flex items-center h-6 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Sign in</a>
       </div>
     )
   }
@@ -38,7 +38,7 @@ export function AuthMenu() {
         onClick={() => setOpen(v => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+        className="inline-flex items-center h-6 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] bg-transparent p-0 border-0"
       >
         {label}
       </button>
