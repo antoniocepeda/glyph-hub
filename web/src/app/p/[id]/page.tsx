@@ -70,6 +70,7 @@ export default function PromptPage() {
 
   const [vars, setVars] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState<'prompt'|'json'|'code'|'embed'|null>(null)
+  const [copyOpen, setCopyOpen] = useState(false)
 
   function applyVars(text: string): string {
     return (text || '').replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? `{{${k}}}`)
@@ -93,62 +94,77 @@ export default function PromptPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-display text-2xl">{data.title}</h1>
         <div className="relative z-50 flex gap-2 text-sm pointer-events-auto">
-          <button
-            onClick={async () => {
-              await copyToClipboard(applyVars(data.body))
-              setCopied('prompt')
-              setTimeout(() => setCopied(null), 1500)
-              try {
-                const db = getDb()
-                if (db) await updateDoc(doc(db, 'prompts', params.id), { 'stats.copies': increment(1) })
-              } catch {}
-            }}
-            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
-            type="button"
+          <div className="relative">
+            <button
+              onClick={() => setCopyOpen(v => !v)}
+              className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
+              aria-haspopup="menu"
+              aria-expanded={copyOpen}
+              type="button"
             >
-            {copied === 'prompt' ? 'Copied' : 'Copy Prompt'}
-          </button>
-          <button
-            onClick={async () => {
-              const json = JSON.stringify({
-                title: data.title,
-                body: applyVars(data.body),
-                tags: data.tags || [],
-                sourceUrl: data.sourceUrl || null,
-                visibility: data.visibility || 'public',
-              })
-              await copyToClipboard(json)
-              setCopied('json')
-              setTimeout(() => setCopied(null), 1500)
-            }}
-            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
-            type="button"
-            >
-            {copied === 'json' ? 'Copied' : 'Copy JSON'}
-          </button>
-          <button
-            onClick={async () => {
-              await copyToClipboard(shareCode)
-              setCopied('code')
-              setTimeout(() => setCopied(null), 1500)
-            }}
-            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
-            type="button"
-            >
-            {copied === 'code' ? 'Copied' : 'Copy Share Code'}
-          </button>
-          <button
-            onClick={async () => {
-              const code = `<iframe src="${window.location.origin}/embed/p/${params.id}" width="600" height="200" frameborder="0" style="max-width:100%;"></iframe>`
-              await copyToClipboard(code)
-              setCopied('embed')
-              setTimeout(() => setCopied(null), 1500)
-            }}
-            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
-            type="button"
-            >
-            {copied === 'embed' ? 'Copied' : 'Copy Embed'}
-          </button>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            {copyOpen && (
+              <div
+                className="absolute right-0 mt-2 w-48 rounded-[10px] border border-[var(--gh-border)] bg-[var(--gh-surface)] shadow-[var(--gh-shadow-2)] py-1"
+                onMouseLeave={() => setCopyOpen(false)}
+                role="menu"
+              >
+                <button
+                  className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+                  onClick={async () => {
+                    await copyToClipboard(applyVars(data.body))
+                    setCopied('prompt')
+                    setCopyOpen(false)
+                    setTimeout(() => setCopied(null), 1500)
+                    try {
+                      const db = getDb()
+                      if (db) await updateDoc(doc(db, 'prompts', params.id), { 'stats.copies': increment(1) })
+                    } catch {}
+                  }}
+                  role="menuitem"
+                >Copy Prompt</button>
+                <button
+                  className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+                  onClick={async () => {
+                    const json = JSON.stringify({
+                      title: data.title,
+                      body: applyVars(data.body),
+                      tags: data.tags || [],
+                      sourceUrl: data.sourceUrl || null,
+                      visibility: data.visibility || 'public',
+                    })
+                    await copyToClipboard(json)
+                    setCopied('json')
+                    setCopyOpen(false)
+                    setTimeout(() => setCopied(null), 1500)
+                  }}
+                  role="menuitem"
+                >Copy JSON</button>
+                <button
+                  className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+                  onClick={async () => {
+                    await copyToClipboard(shareCode)
+                    setCopied('code')
+                    setCopyOpen(false)
+                    setTimeout(() => setCopied(null), 1500)
+                  }}
+                  role="menuitem"
+                >Copy Share Code</button>
+                <button
+                  className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+                  onClick={async () => {
+                    const code = `<iframe src=\"${window.location.origin}/embed/p/${params.id}\" width=\"600\" height=\"200\" frameborder=\"0\" style=\"max-width:100%;\"></iframe>`
+                    await copyToClipboard(code)
+                    setCopied('embed')
+                    setCopyOpen(false)
+                    setTimeout(() => setCopied(null), 1500)
+                  }}
+                  role="menuitem"
+                >Copy Embed</button>
+              </div>
+            )}
+          </div>
           <Link href={`/p/${params.id}`} className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Share URL</Link>
           {(() => {
             const auth = getFirebaseAuth()
