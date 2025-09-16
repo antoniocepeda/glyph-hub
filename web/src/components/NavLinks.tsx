@@ -5,8 +5,7 @@ import Link from 'next/link'
 export function NavLinks() {
   const user = getFirebaseAuth()?.currentUser
   return (
-    <div className="ml-auto flex items-center gap-2">
-      <Link href="/public" className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Public</Link>
+    <div className="flex items-center gap-2">
       {user && (
         <>
           <Link href="/collections" className="text-sm text-[var(--gh-cyan)]">Collections</Link>

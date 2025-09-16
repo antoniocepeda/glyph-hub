@@ -27,8 +27,9 @@ export default function RootLayout({
           <header className="sticky top-0 z-40 border-b border-[var(--gh-border)] bg-[color:var(--gh-bg)]/80 backdrop-blur supports-[backdrop-filter]:bg-[color:var(--gh-bg)]/60">
             <div className="h-14 flex items-center gap-4">
               <Link href="/" className="font-display" aria-label="Home">GlyphHub</Link>
-              <NavLinks />
               <div className="ml-auto flex items-center gap-3">
+                <Link href="/public" className="text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Public</Link>
+                <NavLinks />
                 <ClientAuthMenu />
               </div>
             </div>
