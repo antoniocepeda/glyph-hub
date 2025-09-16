@@ -9,10 +9,11 @@ import { updateProfile } from 'firebase/auth'
 export default function ProfilePage() {
   const params = useParams() as { uid: string }
   type UserDoc = { displayName?: string; bio?: string; preferences?: { theme?: 'system'|'light'|'dark'; defaultVisibility?: 'public'|'unlisted'|'private' } }
-  type PromptItem = { id: string; title: string; tags?: string[] }
+  type PromptItem = { id: string; title: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }
   type CollectionItem = { id: string; title: string }
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null)
   const [prompts, setPrompts] = useState<PromptItem[]>([])
+  const [myDrafts, setMyDrafts] = useState<PromptItem[]>([])
   const [collections, setCollections] = useState<CollectionItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const myUid = useMemo(() => getFirebaseAuth()?.currentUser?.uid || null, [])
@@ -27,7 +28,16 @@ export default function ProfilePage() {
         const u = await getDoc(doc(db, 'users', params.uid))
         if (u.exists()) setUserDoc(u.data() as UserDoc)
         const pSnaps = await getDocs(query(collection(db, 'prompts'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
-        setPrompts(pSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[] }) })))
+        setPrompts(pSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }) })))
+        // If viewing my own profile, also load my private/unlisted prompts (e.g., forks)
+        const myUidNow = getFirebaseAuth()?.currentUser?.uid
+        if (myUidNow && myUidNow === params.uid) {
+          const mineSnaps = await getDocs(query(collection(db, 'prompts'), where('ownerId', '==', params.uid)))
+          const allMine = mineSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string; tags?: string[]; visibility?: 'public'|'unlisted'|'private' }) })) as PromptItem[]
+          setMyDrafts(allMine.filter(p => p.visibility !== 'public'))
+        } else {
+          setMyDrafts([])
+        }
         const cSnaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', params.uid), where('visibility', '==', 'public')))
         setCollections(cSnaps.docs.map(d => ({ id: d.id, ...(d.data() as { title: string }) })))
       } catch (e) {
@@ -87,6 +97,21 @@ export default function ProfilePage() {
         ))}
         {prompts.length === 0 && <div className="text-sm text-[var(--gh-text-muted)]">No public prompts.</div>}
       </div>
+
+      {isOwner && (
+        <>
+          <h2 className="font-display text-xl mt-8 mb-3">My Drafts & Forks</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {myDrafts.map(p => (
+              <Link key={p.id} href={`/p/${p.id}`} className="rounded-[14px] p-4 bg-[var(--gh-surface)] border border-[var(--gh-border)]">
+                <div className="font-medium">{p.title}</div>
+                <div className="text-xs text-[var(--gh-text-muted)]">{p.visibility || 'private'}</div>
+              </Link>
+            ))}
+            {myDrafts.length === 0 && <div className="text-sm text-[var(--gh-text-muted)]">No private or unlisted prompts.</div>}
+          </div>
+        </>
+      )}
 
       <h2 className="font-display text-xl mt-8 mb-3">Public Collections</h2>
       <div className="grid gap-3 sm:grid-cols-2">
