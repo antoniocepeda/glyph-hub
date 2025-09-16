@@ -43,16 +43,10 @@ service cloud.firestore {
                    isOwner(resource.data.ownerId);
 
       allow create: if (
-                      // Authenticated user may create with full validation and simple cooldown
+                      // Authenticated user may create with validation
                       isSignedIn() &&
                       request.resource.data.ownerId == request.auth.uid &&
-                      validPromptData(request.resource.data) &&
-                      (
-                        // Allow if user doc is missing OR lastCreateAt missing OR cooldown elapsed
-                        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastCreateAt == null ||
-                        request.time > get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastCreateAt + duration.value(60, 's')
-                      )
+                      validPromptData(request.resource.data)
                     ) || (
                       // Unauthenticated users can post only public or unlisted prompts under ownerId 'anon'
                       !isSignedIn() &&
