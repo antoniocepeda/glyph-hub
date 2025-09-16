@@ -69,6 +69,7 @@ export default function PromptPage() {
   }, [data])
 
   const [vars, setVars] = useState<Record<string, string>>({})
+  const [copied, setCopied] = useState<'prompt'|'json'|'code'|'embed'|null>(null)
 
   function applyVars(text: string): string {
     return (text || '').replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? `{{${k}}}`)
@@ -95,15 +96,17 @@ export default function PromptPage() {
           <button
             onClick={async () => {
               await copyToClipboard(applyVars(data.body))
+              setCopied('prompt')
+              setTimeout(() => setCopied(null), 1500)
               try {
                 const db = getDb()
                 if (db) await updateDoc(doc(db, 'prompts', params.id), { 'stats.copies': increment(1) })
               } catch {}
             }}
-            className="text-[var(--gh-cyan)] cursor-pointer"
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
             type="button"
             >
-            Copy Prompt
+            {copied === 'prompt' ? 'Copied' : 'Copy Prompt'}
           </button>
           <button
             onClick={async () => {
@@ -115,28 +118,36 @@ export default function PromptPage() {
                 visibility: data.visibility || 'public',
               })
               await copyToClipboard(json)
+              setCopied('json')
+              setTimeout(() => setCopied(null), 1500)
             }}
-            className="text-[var(--gh-cyan)] cursor-pointer"
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
             type="button"
             >
-            Copy JSON
+            {copied === 'json' ? 'Copied' : 'Copy JSON'}
           </button>
           <button
-            onClick={() => copyToClipboard(shareCode)}
-            className="text-[var(--gh-cyan)] cursor-pointer"
+            onClick={async () => {
+              await copyToClipboard(shareCode)
+              setCopied('code')
+              setTimeout(() => setCopied(null), 1500)
+            }}
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
             type="button"
             >
-            Copy Share Code
+            {copied === 'code' ? 'Copied' : 'Copy Share Code'}
           </button>
           <button
             onClick={async () => {
               const code = `<iframe src="${window.location.origin}/embed/p/${params.id}" width="600" height="200" frameborder="0" style="max-width:100%;"></iframe>`
               await copyToClipboard(code)
+              setCopied('embed')
+              setTimeout(() => setCopied(null), 1500)
             }}
-            className="text-[var(--gh-cyan)] cursor-pointer"
+            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] cursor-pointer"
             type="button"
             >
-            Copy Embed
+            {copied === 'embed' ? 'Copied' : 'Copy Embed'}
           </button>
           <Link href={`/p/${params.id}`} className="text-[var(--gh-cyan)]">Share URL</Link>
           {(() => {
