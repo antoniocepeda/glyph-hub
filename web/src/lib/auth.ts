@@ -3,7 +3,6 @@ import {
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInAnonymously,
   User,
 } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
@@ -59,17 +58,6 @@ export async function signOut(): Promise<void> {
   await firebaseSignOut(auth)
 }
 
-export async function ensureAnonymousUser(): Promise<User | null> {
-  const auth = getFirebaseAuth()
-  if (!auth) return null
-  if (auth.currentUser) return auth.currentUser
-  try {
-    const res = await signInAnonymously(auth)
-    return res.user
-  } catch (e) {
-    console.warn('[auth] Anonymous sign-in failed. Enable Anonymous provider in Firebase console.', e)
-    return null
-  }
-}
+// Anonymous sign-in helper removed; client anonymous writes use ownerId 'anon' under rules
 
 
