@@ -52,7 +52,6 @@ export default function TrendingPage() {
           <Link key={p.id} href={`/p/${p.id}`} className="group rounded-[16px] bg-[var(--gh-surface)] border border-[var(--gh-border)] p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-lg">{p.title}</h3>
-              <span className="text-xs text-[var(--gh-text-muted)]">{engagementScore(p)}</span>
             </div>
             <p className="text-[var(--gh-text-dim)] text-sm line-clamp-3 mt-2">{p.body}</p>
             <div className="mt-3 flex flex-wrap gap-2">
