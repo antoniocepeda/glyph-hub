@@ -59,6 +59,9 @@ export default function Home() {
       {topThree.length > 0 && (
         <section className="mt-8">
           <h2 className="font-display text-xl mb-3 text-[var(--gh-text-dim)]">Trending</h2>
+          <div className="mb-3 text-sm">
+            <Link href="/public" className="text-[var(--gh-cyan)] hover:underline underline-offset-2">Browse all public prompts</Link>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {topThree.map(p => (
               <Link key={p.id} href={`/p/${p.id}`} className="group rounded-[16px] bg-[var(--gh-surface)] border border-[var(--gh-border)] p-4 shadow-[var(--gh-shadow-1)] hover:shadow-[var(--gh-shadow-2)] transition">
