@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const myUid = useMemo(() => getFirebaseAuth()?.currentUser?.uid || null, [])
   const isOwner = myUid === params.uid
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -41,8 +42,28 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-[900px] py-8">
-      <h1 className="font-display text-2xl mb-1">{userDoc?.displayName || 'User'}</h1>
-      {isOwner && (
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="font-display text-2xl">{userDoc?.displayName || 'User'}</h1>
+        {isOwner && (
+          <button
+            onClick={() => setEditing(v => !v)}
+            className="rounded-[10px] px-3 py-2 text-sm border border-[var(--gh-border)]"
+          >
+            {editing ? 'Close editor' : 'Edit profile'}
+          </button>
+        )}
+      </div>
+
+      {/* Profile details (read-only) */}
+      <div className="mb-6 p-4 rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)]">
+        {userDoc?.bio && <p className="text-sm mb-2">{userDoc.bio}</p>}
+        <div className="text-xs text-[var(--gh-text-muted)]">
+          <span>Theme: {userDoc?.preferences?.theme || 'system'}</span>
+          <span> • Default visibility: {userDoc?.preferences?.defaultVisibility || 'public'}</span>
+        </div>
+      </div>
+
+      {isOwner && editing && (
         <OwnerEditor
           initial={{
             displayName: userDoc?.displayName || '',
