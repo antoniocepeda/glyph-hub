@@ -186,7 +186,7 @@ export default function PromptPage() {
                 }
               } catch {}
             }}
-            className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] pointer-events-auto"
+            className={`${liked ? 'text-[var(--gh-cyan)]' : 'text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]'} pointer-events-auto`}
           >
             {liked ? '★ Liked' : '☆ Like'}
           </button>
