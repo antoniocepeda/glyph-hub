@@ -13,7 +13,7 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
   - [x] Seed minimal sample data (optional)
 
 - [ ] Initialize web app stack
-  - [x] Initialize Next.js 15 + React 18 app
+  - [x] Initialize Next.js 15 + React 19 app
   - [x] Add TailwindCSS and shadcn/ui
   - [x] Configure Firebase SDK (Auth + Firestore)
   - [x] Add libraries: `nanoid`, `pako`, `zod`
@@ -143,7 +143,7 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 ## Acceptance Criteria (high-level)
 
 - [x] Users can create, share (short URL + share code), view, and search prompts
-- [x] Auth works with Google/email; visibility enforced by Firestore rules
+- [x] Auth works with email/password; visibility enforced by Firestore rules
 - [x] Share codes decode offline and reproduce prompt data
 - [x] Public prompts discoverable by title/tags; private remain inaccessible
 - [ ] Performance targets met for cached prompt fetches

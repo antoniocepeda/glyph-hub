@@ -153,8 +153,8 @@
 
 ## 5. Technical Requirements
 
-* **Frontend:** Next.js 15, React 18, Tailwind, shadcn/ui.
-* **Backend:** Firebase Auth, Firestore, Cloud Functions.
+* **Frontend:** Next.js 15, React 19, Tailwind, shadcn/ui.
+* **Backend:** Firebase Auth (Email/Password), Firestore, optional Cloud Functions.
 * **IDs:** `nanoid` for URLs.
 * **Compression:** `pako` for share codes.
 * **Validation:** `zod`.
@@ -181,7 +181,7 @@
 4. **Share code** generation (encode/decode).
 5. **Prompt view** page with copy buttons.
 6. **Basic search** by title/tags.
-7. **Authentication** (Google/email).
+7. **Authentication** (Email/Password).
 
 ---
 

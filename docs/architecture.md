@@ -6,7 +6,7 @@ High-level architecture, data model, and flows aligned with the PRD.
 
 ## 1) System overview
 
-- Frontend: Next.js 15 (App Router), React 18, Tailwind, shadcn/ui
+- Frontend: Next.js 15 (App Router), React 19, Tailwind, shadcn/ui
 - Backend: Firebase Auth, Firestore, (optional) Cloud Functions
 - IDs: `nanoid` for short URLs (`/p/<id>`)
 - Share Codes: `PB1.<compressed JSON>.<crc>` using `pako`
@@ -16,11 +16,15 @@ High-level architecture, data model, and flows aligned with the PRD.
 
 ## 2) Routes (App Router)
 
-- `/` — feed/search (public + mine)
+- `/` — feed/search (public)
 - `/new` — create prompt
-- `/p/[id]` — prompt view
+- `/p/[id]` — prompt view; `/p/[id]/edit`, `/p/[id]/versions`
 - `/profile/[uid]` — public profile
-- `/collections/[id]` — collection view
+- `/collections` — listing; `/collections/new`; `/collections/[id]`; `/collections/[id]/edit`
+- `/help` — knowledge base; `/help/[slug]`
+- `/public` — browse all public prompts
+- `(auth)/login` — email/password auth
+- `api/extract` — naive import extractor (server route)
 
 ---
 
@@ -68,10 +72,12 @@ High-level architecture, data model, and flows aligned with the PRD.
 - Public visibility: anyone can read
 - Unlisted: readable when direct link/share code is used (no listing)
 - Private: only owner
-- Writes: only owner can create/update/delete their prompts/collections
-- Profiles readable by all
+- Auth: Email/Password. Anonymous writes allowed only for creating public/unlisted prompts with `ownerId == 'anon'`.
+- Stats updates: constrained increments (views/copies non-decreasing; likes ±1) for signed-in users.
+- Deletes: owner or designated superuser email.
+- Collections: collaborator roles (`viewer`/`editor`).
 
-See `developer-setup.md` for a starting set of Firestore rules.
+Full rules live in `web/firebase.rules`.
 
 ---
 
@@ -79,7 +85,7 @@ See `developer-setup.md` for a starting set of Firestore rules.
 
 ### 5.1 Create Prompt
 
-1. User authenticates
+1. User authenticates (or proceeds unauthenticated with limited capabilities)
 2. Client validates input (zod)
 3. Compute checksum of body
 4. Create `prompts/{id}` (id from `nanoid`)

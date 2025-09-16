@@ -25,41 +25,26 @@ cd glyphhub
 
 ---
 
-## 3) Create the Next.js app (web)
+## 3) Project layout and install dependencies
 
-The product targets Next.js 15 + React 18 with Tailwind and shadcn/ui.
-
-```bash
-npx create-next-app@latest web \
-  --ts \
-  --tailwind \
-  --eslint \
-  --app \
-  --src-dir \
-  --import-alias "@/*" \
-  --use-npm \
-  --no-git
-```
-
-Move into the `web` app and install core libraries:
+This repository already includes the Next.js app under `web/` targeting Next.js 15 + React 19 with Tailwind 4 and shadcn/ui.
 
 ```bash
 cd web
-npm i firebase zod nanoid pako lucide-react
+npm install
 ```
 
-Initialize shadcn/ui:
-
-```bash
-npx shadcn@latest init -y
-```
+Notes:
+- Node 20 is required (see `web/package.json` → `engines.node`).
+- UI icons use `lucide-react`. Tailwind CSS is v4.
+- shadcn/ui is preconfigured (see `web/components.json`).
 
 ---
 
 ## 4) Firebase project setup
 
 1. Create a Firebase project in the console and enable:
-   - Authentication: Google + Email/Password
+   - Authentication: Email/Password
    - Firestore: Production mode
 2. Copy the Web SDK config from Project Settings → General.
 
@@ -72,9 +57,11 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
+# Optional (used if provided):
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
 ```
 
-Add a basic Firebase client in `web/src/lib/firebase.ts` (example structure):
+We already ship a robust Firebase client in `web/src/lib/firebase.ts` (with persistence and SSR guards). The following is a simplified reference-only example:
 
 ```ts
 import { initializeApp, getApps, getApp } from 'firebase/app'
@@ -137,6 +124,12 @@ service cloud.firestore {
 }
 ```
 
+Project-specific rule additions (see `web/firebase.rules`):
+- Unauthenticated users can create only `public` or `unlisted` prompts with `ownerId == 'anon'` (validated fields required).
+- Signed-in users may perform stats-only updates with constraints (views/copies non-decreasing; likes can change by ±1).
+- Deletes are allowed by the owner or a designated superuser email.
+- Collections support collaborators with `viewer`/`editor` roles.
+
 ---
 
 ## 6) Recommended directory structure
@@ -161,6 +154,8 @@ npm run dev
 ```
 
 Visit http://localhost:3000.
+
+Optional: A simple Express static server exists at the repo root (`index.js`) and serves `public/index.html` when run from the root. It is not required for the Next.js app.
 
 ---
 
