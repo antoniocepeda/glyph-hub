@@ -100,42 +100,38 @@ export default function HelpIndex() {
       </section>
 
       {!q && category === 'All' && (
-        <section className="mb-8">
-          <h2 className="font-display text-xl mb-3 text-[var(--gh-text-dim)]">Featured</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <section className="mb-6">
+          <h2 className="font-display text-xl mb-2 text-[var(--gh-text-dim)]">Featured</h2>
+          <div className="rounded-[10px] border border-[var(--gh-border)] bg-[var(--gh-surface)] divide-y divide-[var(--gh-border)]">
             {featured.map(a => (
               <Link
                 key={a.slug}
                 href={`/help/${a.slug}`}
-                className="group rounded-[16px] bg-[var(--gh-surface)] border border-[var(--gh-border)] p-4 shadow-[var(--gh-shadow-1)] hover:shadow-[var(--gh-shadow-2)] transition"
+                className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--gh-bg-soft)] transition"
               >
-                <div className="flex items-center gap-2">
-                  <CategoryIcon category={a.category} />
-                  <div className="font-medium group-hover:text-[var(--gh-cyan)]">{a.title}</div>
-                </div>
-                <div className="mt-2 text-xs text-[var(--gh-text-muted)]">{a.category}</div>
+                <CategoryIcon category={a.category} />
+                <span className="font-medium hover:text-[var(--gh-cyan)]">{a.title}</span>
+                <span className="ml-auto text-xs text-[var(--gh-text-muted)]">{a.category}</span>
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      <section className="space-y-8">
+      <section className="space-y-6">
         {grouped.map(([cat, items]) => (
           <div key={cat}>
-            <h2 className="font-display text-xl mb-2">{cat}</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <h2 className="font-display text-lg mb-2 text-[var(--gh-text-dim)]">{cat}</h2>
+            <div className="rounded-[10px] border border-[var(--gh-border)] bg-[var(--gh-surface)] divide-y divide-[var(--gh-border)]">
               {items.map(a => (
                 <Link
                   key={a.slug}
                   href={`/help/${a.slug}`}
-                  className="group rounded-[12px] border border-[var(--gh-border)] bg-[var(--gh-surface)] p-4 hover:border-[var(--gh-cyan)] transition"
+                  className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--gh-bg-soft)] transition"
                 >
-                  <div className="flex items-center gap-2">
-                    <CategoryIcon category={a.category} />
-                    <div className="font-medium group-hover:text-[var(--gh-cyan)]">{a.title}</div>
-                  </div>
-                  <div className="mt-1 text-xs text-[var(--gh-text-muted)]">{a.category}</div>
+                  <CategoryIcon category={a.category} />
+                  <span className="font-medium hover:text-[var(--gh-cyan)]">{a.title}</span>
+                  <span className="ml-auto text-xs text-[var(--gh-text-muted)]">{a.category}</span>
                 </Link>
               ))}
             </div>

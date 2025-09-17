@@ -35,11 +35,21 @@ function CategoryBadge({ category }: { category: string }) {
 export default function HelpArticle() {
   const params = useParams() as { slug: string }
   const a = getKb(params.slug)
-
+  // Hooks must be called unconditionally
   const related = useMemo(() => {
     if (!a) return [] as typeof KB
     return KB.filter(x => x.slug !== a.slug && (x.category === a.category || x.title.split(' ').some(w => a.title.includes(w)))).slice(0, 6)
   }, [a])
+  const grouped = useMemo(() => {
+    const map = new Map<string, { title: string; slug: string }[]>()
+    for (const item of KB) {
+      if (!map.has(item.category)) map.set(item.category, [])
+      map.get(item.category)!.push({ title: item.title, slug: item.slug })
+    }
+    return Array.from(map.entries())
+  }, [])
+  const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [menuOpen, setMenuOpen] = useState(false)
 
   if (!a) return (
     <div className="mx-auto max-w-[1000px] py-6">
@@ -49,18 +59,6 @@ export default function HelpArticle() {
       </Link>
     </div>
   )
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, { title: string; slug: string }[]>()
-    for (const item of KB) {
-      if (!map.has(item.category)) map.set(item.category, [])
-      map.get(item.category)!.push({ title: item.title, slug: item.slug })
-    }
-    return Array.from(map.entries())
-  }, [])
-
-  const [open, setOpen] = useState<Record<string, boolean>>({})
-  const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <div className="mx-auto max-w-[1100px] py-6 grid grid-cols-1 lg:grid-cols-[210px,1fr] gap-6">

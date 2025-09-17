@@ -4,6 +4,52 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 
 ---
 
+## Code Review Tasks (2025-09)
+
+### P0 — Critical (breakage/privacy/security)
+
+- [ ] Replace Node Buffer usage in `web/src/lib/share-code.ts` with a browser-safe base64url implementation (no `Buffer`; use `TextEncoder`/`TextDecoder` with `btoa`/`atob` or a tiny base64 lib). Keep the public API unchanged.
+- [ ] Move sessionStorage draft hydration in `web/src/app/new/page.tsx` into a `useEffect`; remove render-time `setState` calls.
+- [ ] Firestore rules: clarify "unlisted"
+  - [ ] Remove `request.time != null` (always true) from read condition
+  - [ ] Decide semantics: unlisted is public-but-not-listed (rules stay public) or semi-private (add token gating)
+- [ ] Harden `/api/extract` (SSR-only) to prevent SSRF and large responses
+  - [ ] Require `https:` URLs only; reject others with 400
+  - [ ] Block private/loopback/onion IPs and local hostnames
+  - [ ] Enforce timeout and body size limit; stream/discard after limit
+  - [ ] Check `res.ok`; map errors to 4xx/5xx appropriately
+  - [ ] Add simple allow/deny host list toggle via env
+
+### P1 — High (security/rules correctness/consistency)
+
+- [ ] Expand env completeness check in `web/src/lib/firebase.ts`
+  - [ ] Include all referenced `NEXT_PUBLIC_*` keys (storage bucket, messaging sender id, measurement id) in `ENV_SNAPSHOT`
+  - [ ] Or explicitly treat non-required keys as optional and document it
+- [ ] Replace hardcoded superuser email with custom claims in rules and client UI
+  - [ ] Add `isSuperUser` check to use `request.auth.token.role == 'admin'`
+  - [ ] Update client delete controls to check a claim, not email
+- [ ] Restrict prompt document fields in rules
+  - [ ] Enforce allowed keys with `request.resource.data.keys().hasOnly([...])`
+  - [ ] If extra fields are desired (e.g., `preferredModel`), add schema + rules
+
+### P2 — Medium (UX consistency/tech debt)
+
+- [ ] Unify prompt writes through a shared helper (Zod-validated + canonicalization) used by QuickPaste and New Prompt
+- [ ] Replace `window.location.href` navigations with `router.push` for SPA behavior
+- [ ] Metrics consistency for likes/copies/views
+  - [ ] Consider Cloud Function aggregation or per-user stable counters to avoid drift
+- [ ] Tighten `storage.rules`
+  - [ ] Restrict paths (e.g., `users/{uid}/uploads/...`), file types, and size
+  - [ ] Reconsider global public read; make public buckets explicit
+- [ ] Add unit tests (when test infra exists)
+  - [ ] Share code encode/decode round-trip
+  - [ ] Validators and canonicalization edge cases
+
+### P3 — Low (polish/cleanup)
+
+- [ ] QuickPaste visibility UI: use a radio group instead of three checkboxes
+- [ ] Remove unused `firebase-admin` from `web/package.json` (client app) to reduce install size and avoid accidental bundling
+
 ## Phase 1 – MVP Foundation
 
 - [ ] Set up Firebase project and Firestore
