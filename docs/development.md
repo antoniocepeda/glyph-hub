@@ -61,7 +61,7 @@
 
    * Display title, body, tags, source URL.
    * Copy buttons: “Copy Prompt”, “Copy JSON”.
-   * Stats: views, copies.
+   * Stats: views, copies, likes.
 
 ---
 
@@ -102,7 +102,7 @@
 
 1. **Browser Extension**
 
-   * Highlight text → “Save to PromptBin.”
+   * Highlight text → “Save to GlyphHub.”
    * Auto-prefill title (from page `<title>`).
    * Capture `source_url`.
    * Tags suggested by simple heuristics.
@@ -156,9 +156,10 @@
 * **Frontend:** Next.js 15, React 19, Tailwind, shadcn/ui.
 * **Backend:** Firebase Auth (Email/Password), Firestore, optional Cloud Functions.
 * **IDs:** `nanoid` for URLs.
-* **Compression:** `pako` for share codes.
+* **Compression:** `pako` for share codes (PB1).
 * **Validation:** `zod`.
 * **Browser Extension:** MV3, TS + Vite.
+* **Checksum:** FNV-1a 32-bit for basic deduplication.
 
 ---
 
@@ -205,6 +206,10 @@
 5. **Embeds for blogs/Notion**.
 6. **Collections sharing** (share entire folders).
 7. **Collaboration invites** (private sharing with team).
+
+Notes:
+- Copy actions apply variable substitutions before producing JSON/share codes; PB1 encodes the filled prompt at copy time.
+- UI may capture optional metadata (e.g., `preferredModel`, `description`, `howToUse`) not included in the PB1 canonical schema.
 
 ---
 

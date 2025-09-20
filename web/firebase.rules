@@ -11,8 +11,11 @@ service cloud.firestore {
     }
 
     function isSuperUser() {
-      // Superuser email hardcoded: outersloth@gmail.com
-      return isSignedIn() && request.auth.token.email == 'outersloth@gmail.com';
+      // Prefer custom claims: role == 'admin' or admin == true
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.admin == true
+      );
     }
 
     function getUser(uid) {
@@ -30,6 +33,16 @@ service cloud.firestore {
                data.stats.views >= 0 && data.stats.copies >= 0 && data.stats.likes >= 0;
       }
 
+      // Enforce top-level prompt fields to a known set
+      function allowedPromptKeysOnly(data) {
+        return data.keys().hasOnly([
+          'title', 'body', 'tags', 'sourceUrl', 'visibility',
+          'ownerId', 'stats', 'checksum', 'forkOf', 'createdAt', 'updatedAt',
+          // Optional UI extras permitted by the client
+          'preferredModel', 'description', 'howToUse',
+        ]);
+      }
+
       function onlyStatsChanged(before, after) {
         return after.diff(before).changedKeys().hasOnly(['stats', 'updatedAt']);
       }
@@ -43,25 +56,28 @@ service cloud.firestore {
                 after.stats.likes == before.stats.likes - 1);
       }
 
-      allow read: if resource.data.visibility == 'public' ||
-                   (resource.data.visibility == 'unlisted' && request.time != null) ||
+      // Unlisted behaves as public-but-not-listed at the rules level.
+      // If you need semi-private unlisted, move sensitive data behind a gated path or function.
+      allow read: if resource.data.visibility in ['public', 'unlisted'] ||
                    isOwner(resource.data.ownerId);
 
       allow create: if (
                       // Authenticated user may create with validation
                       isSignedIn() &&
                       request.resource.data.ownerId == request.auth.uid &&
-                      validPromptData(request.resource.data)
+                      validPromptData(request.resource.data) &&
+                      allowedPromptKeysOnly(request.resource.data)
                     ) || (
                       // Unauthenticated users can post only public or unlisted prompts under ownerId 'anon'
                       !isSignedIn() &&
                       request.resource.data.ownerId == 'anon' &&
                       request.resource.data.visibility in ['public', 'unlisted'] &&
-                      validPromptData(request.resource.data)
+                      validPromptData(request.resource.data) &&
+                      allowedPromptKeysOnly(request.resource.data)
                     );
       allow update: if (
         // owner full edit but ownerId cannot change
-        (isOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId && validPromptData(request.resource.data)) ||
+        (isOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId && validPromptData(request.resource.data) && allowedPromptKeysOnly(request.resource.data)) ||
         // allow stats increments only for signed-in users
         (isSignedIn() && onlyStatsChanged(resource.data, request.resource.data) && statsChangeAllowed(resource.data, request.resource.data))
       );
@@ -114,4 +130,3 @@ service cloud.firestore {
     }
   }
 }
-

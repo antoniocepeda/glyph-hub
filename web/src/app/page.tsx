@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { collection as fsCollection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { customAlphabet } from 'nanoid'
 import { computeChecksum } from '@/lib/checksum'
+import { canonicalizePrompt } from '@/lib/validators'
 
 type Prompt = {
   id: string
@@ -82,6 +83,7 @@ export default function Home() {
 }
 
 function QuickPaste() {
+  const router = useRouter()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
@@ -191,24 +193,41 @@ function QuickPaste() {
           </div>
           <div>
             <label className="block text-xs mb-1 text-[var(--gh-text-muted)]">Visibility</label>
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-1 text-sm">
-                <input type="checkbox" checked={visibility === 'public'} onChange={() => setVisibility('public')} />
+            <div role="radiogroup" aria-label="Visibility" className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="qp_visibility"
+                  value="public"
+                  checked={visibility === 'public'}
+                  onChange={() => setVisibility('public')}
+                />
                 Public
               </label>
-              <label className="inline-flex items-center gap-1 text-sm">
-                <input type="checkbox" checked={visibility === 'unlisted'} onChange={() => setVisibility('unlisted')} />
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="qp_visibility"
+                  value="unlisted"
+                  checked={visibility === 'unlisted'}
+                  onChange={() => setVisibility('unlisted')}
+                />
                 Unlisted
               </label>
-              <div className={`inline-flex items-center gap-1 text-sm ${!canPrivate ? 'opacity-50' : ''}`}>
-                <label className="inline-flex items-center gap-1">
-                  <input type="checkbox" checked={visibility === 'private'} onChange={() => canPrivate && setVisibility('private')} disabled={!canPrivate} />
-                  Private
-                </label>
+              <label className={`inline-flex items-center gap-2 text-sm cursor-pointer ${!canPrivate ? 'opacity-50' : ''}`}> 
+                <input
+                  type="radio"
+                  name="qp_visibility"
+                  value="private"
+                  checked={visibility === 'private'}
+                  onChange={() => canPrivate && setVisibility('private')}
+                  disabled={!canPrivate}
+                />
+                Private
                 {!canPrivate && (
                   <Link href="/login" className="ml-2 text-xs text-[var(--gh-text-muted)] hover:underline underline-offset-2">Sign in</Link>
                 )}
-              </div>
+              </label>
             </div>
           </div>
         </div>
@@ -241,20 +260,23 @@ function QuickPaste() {
                   if (description.trim()) extras.description = description.trim()
                   if (howToUse.trim()) extras.howToUse = howToUse.trim()
                 }
-                await setDoc(ref, {
+                const canonical = canonicalizePrompt({
                   title: title || 'Untitled',
                   body: body.trim(),
                   tags,
                   sourceUrl: src,
                   visibility: vis,
+                })
+                await setDoc(ref, {
+                  ...canonical,
                   ownerId: 'anon',
-                  checksum: computeChecksum(body.trim()),
+                  checksum: computeChecksum(canonical.body),
                   stats: { views: 0, copies: 0, likes: 0 },
                   createdAt: serverTimestamp(),
                   updatedAt: serverTimestamp(),
                   ...extras,
                 })
-                window.location.href = `/p/${id}`
+                router.push(`/p/${id}`)
               } else {
                 const db = getDb()
                 if (!db) throw new Error('No DB')
@@ -268,20 +290,23 @@ function QuickPaste() {
                   if (description.trim()) extras.description = description.trim()
                   if (howToUse.trim()) extras.howToUse = howToUse.trim()
                 }
-                await setDoc(ref, {
+                const canonical = canonicalizePrompt({
                   title: title || 'Untitled',
                   body: body.trim(),
                   tags,
                   sourceUrl: src,
                   visibility: vis,
+                })
+                await setDoc(ref, {
+                  ...canonical,
                   ownerId: user.uid,
-                  checksum: computeChecksum(body.trim()),
+                  checksum: computeChecksum(canonical.body),
                   stats: { views: 0, copies: 0, likes: 0 },
                   createdAt: serverTimestamp(),
                   updatedAt: serverTimestamp(),
                   ...extras,
                 })
-                window.location.href = `/p/${id}`
+                router.push(`/p/${id}`)
               }
             } catch (e) {
               const msg = e instanceof Error ? e.message : 'Failed'

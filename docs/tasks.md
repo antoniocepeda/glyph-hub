@@ -8,7 +8,7 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 
 ### P0 — Critical (breakage/privacy/security)
 
-- [ ] Replace Node Buffer usage in `web/src/lib/share-code.ts` with a browser-safe base64url implementation (no `Buffer`; use `TextEncoder`/`TextDecoder` with `btoa`/`atob` or a tiny base64 lib). Keep the public API unchanged.
+- [x] Share-code base64url is browser-safe (no `Buffer`) in `web/src/lib/share-code.ts`. Verified custom encode/decode with `TextEncoder`/`TextDecoder` and CRC32.
 - [ ] Move sessionStorage draft hydration in `web/src/app/new/page.tsx` into a `useEffect`; remove render-time `setState` calls.
 - [ ] Firestore rules: clarify "unlisted"
   - [ ] Remove `request.time != null` (always true) from read condition
@@ -38,9 +38,9 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 - [ ] Replace `window.location.href` navigations with `router.push` for SPA behavior
 - [ ] Metrics consistency for likes/copies/views
   - [ ] Consider Cloud Function aggregation or per-user stable counters to avoid drift
-- [ ] Tighten `storage.rules`
-  - [ ] Restrict paths (e.g., `users/{uid}/uploads/...`), file types, and size
-  - [ ] Reconsider global public read; make public buckets explicit
+- [x] Tighten `storage.rules`
+  - [x] Restrict paths (e.g., `users/{uid}/uploads/...`), file types, and size
+  - [x] Reconsider global public read; make public buckets explicit
 - [ ] Add unit tests (when test infra exists)
   - [ ] Share code encode/decode round-trip
   - [ ] Validators and canonicalization edge cases
@@ -193,5 +193,3 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 - [x] Share codes decode offline and reproduce prompt data
 - [x] Public prompts discoverable by title/tags; private remain inaccessible
 - [ ] Performance targets met for cached prompt fetches
-
-

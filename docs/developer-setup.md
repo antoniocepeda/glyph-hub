@@ -38,6 +38,7 @@ Notes:
 - Node 20 is required (see `web/package.json` → `engines.node`).
 - UI icons use `lucide-react`. Tailwind CSS is v4.
 - shadcn/ui is preconfigured (see `web/components.json`).
+- `npm run deploy` uses Firebase Hosting + Firestore rules + Storage (see `web/package.json`).
 
 ---
 
@@ -54,11 +55,11 @@ Create `.env.local` in `web/` with these keys:
 NEXT_PUBLIC_FIREBASE_API_KEY=...
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+# Optional (used if provided; required if you enable Analytics):
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-# Optional (used if provided):
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
 ```
 
 We already ship a robust Firebase client in `web/src/lib/firebase.ts` (with persistence and SSR guards). The following is a simplified reference-only example:
@@ -82,6 +83,25 @@ export const auth = getAuth(app)
 export const db = getFirestore(app)
 ```
 
+To enable Firebase Analytics in the app, also set `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` and call `getAnalytics` on the client (supported browsers only):
+
+```tsx
+// example usage inside a client component
+"use client"
+import { useEffect } from 'react'
+import { getAnalytics } from '@/lib/firebase'
+import { logEvent } from 'firebase/analytics'
+
+export default function AnalyticsBoot() {
+  useEffect(() => {
+    getAnalytics().then((a) => {
+      if (a) logEvent(a, 'page_view')
+    })
+  }, [])
+  return null
+}
+```
+
 ---
 
 ## 5) Firestore rules (MVP)
@@ -103,7 +123,9 @@ service cloud.firestore {
 
     match /prompts/{id} {
       allow read: if resource.data.visibility == 'public' ||
-                   (resource.data.visibility == 'unlisted' && request.time != null) ||
+                   // NOTE: In the current implementation "unlisted" behaves like public-but-not-listed.
+                   // Token-gated or semi-private unlisted would require additional mechanisms.
+                   (resource.data.visibility == 'unlisted') ||
                    isOwner(resource.data.ownerId);
 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
@@ -129,6 +151,7 @@ Project-specific rule additions (see `web/firebase.rules`):
 - Signed-in users may perform stats-only updates with constraints (views/copies non-decreasing; likes can change by ±1).
 - Deletes are allowed by the owner or a designated superuser email.
 - Collections support collaborators with `viewer`/`editor` roles.
+ - Consider tightening `unlisted` semantics if needed (e.g., token-gated access); as-shipped it is public-but-not-listed.
 
 ---
 
@@ -156,6 +179,8 @@ npm run dev
 Visit http://localhost:3000.
 
 Optional: A simple Express static server exists at the repo root (`index.js`) and serves `public/index.html` when run from the root. It is not required for the Next.js app.
+
+Security note (local dev): `/api/extract` currently fetches arbitrary URLs for import convenience. Before production, harden this route to block SSRF and large responses (see tasks).
 
 ---
 
@@ -188,4 +213,3 @@ Use TypeScript runtime; deploy with `firebase deploy --only functions`.
 - Domain: glyphhub.com (alt: glyphub.com — TBD)
 
 Keep the name consistent across UI, docs, and code.
-

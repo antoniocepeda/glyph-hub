@@ -4,16 +4,20 @@ import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, deleteDoc, doc, getDoc, getDocFromCache, getDocFromServer, getDocs, increment, query, updateDoc, where, setDoc, serverTimestamp } from 'firebase/firestore'
 import Link from 'next/link'
 import { encodeShareCode } from '@/lib/share-code'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import { getIdTokenResult } from 'firebase/auth'
 import { copyToClipboard } from '@/lib/utils'
 
 export default function PromptPage() {
   const params = useParams() as { id: string }
+  const router = useRouter()
   type PromptData = { id: string; title: string; body: string; tags: string[]; sourceUrl: string | null; visibility: 'public' | 'unlisted' | 'private'; ownerId?: string; forkOf?: string; checksum?: string }
   const [data, setData] = useState<PromptData | null>(null)
   const [collections, setCollections] = useState<{ id: string; title: string }[]>([])
   const [addStatus, setAddStatus] = useState<string>('')
   const [liked, setLiked] = useState<boolean>(false)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [notFound, setNotFound] = useState<boolean>(false)
   const isSignedIn = Boolean(getFirebaseAuth()?.currentUser)
 
   useEffect(() => {
@@ -47,11 +51,19 @@ export default function PromptPage() {
         try {
           await updateDoc(ref, { 'stats.views': increment(1) })
         } catch {}
+      } else {
+        setNotFound(true)
       }
       // Load my collections for add-to-collection
       const auth = getFirebaseAuth()
       const user = auth?.currentUser
       if (user) {
+        try {
+          const res = await getIdTokenResult(user)
+          type CustomClaims = { role?: string; admin?: boolean }
+          const claims = res.claims as unknown as CustomClaims
+          setIsAdmin(Boolean(claims.role === 'admin' || claims.admin === true))
+        } catch {}
         const snaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', user.uid)))
         setCollections(snaps.docs.map(d => ({ id: d.id, title: (d.data() as { title?: string }).title || '' })))
         const favDoc = await getDoc(doc(db, 'users', user.uid, 'favorites', params.id))
@@ -71,6 +83,7 @@ export default function PromptPage() {
   const [vars, setVars] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState<'prompt'|'json'|'code'|'embed'|null>(null)
   const [copyOpen, setCopyOpen] = useState(false)
+  const [shareHint, setShareHint] = useState<'shared'|'copied'|null>(null)
 
   function applyVars(text: string): string {
     return (text || '').replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? `{{${k}}}`)
@@ -87,6 +100,7 @@ export default function PromptPage() {
     })
   }, [data, vars, applyVars])
 
+  if (notFound) return <div className="py-8 text-sm text-[var(--gh-text-muted)]">Prompt not found or is private.</div>
   if (!data) return <div className="py-8">Loading…</div>
 
   return (
@@ -154,6 +168,20 @@ export default function PromptPage() {
                 <button
                   className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
                   onClick={async () => {
+                    try {
+                      const url = typeof window !== 'undefined' ? window.location.href : ''
+                      if (url) await copyToClipboard(url)
+                      setCopied('code')
+                    } finally {
+                      setCopyOpen(false)
+                      setTimeout(() => setCopied(null), 1500)
+                    }
+                  }}
+                  role="menuitem"
+                >Copy URL</button>
+                <button
+                  className="block w-full text-left px-3 py-2 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+                  onClick={async () => {
                     const code = `<iframe src=\"${window.location.origin}/embed/p/${params.id}\" width=\"600\" height=\"200\" frameborder=\"0\" style=\"max-width:100%;\"></iframe>`
                     await copyToClipboard(code)
                     setCopied('embed')
@@ -165,13 +193,37 @@ export default function PromptPage() {
               </div>
             )}
           </div>
-          <Link href={`/p/${params.id}`} className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Share URL</Link>
+          <button
+            type="button"
+            className={`text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] ${shareHint ? 'text-[var(--gh-cyan)]' : ''}`}
+            onClick={async () => {
+              try {
+                const url = typeof window !== 'undefined' ? window.location.href : `${location.origin}/p/${params.id}`
+                if (navigator.share) {
+                  await navigator.share({ title: data.title || 'GlyphHub Prompt', text: 'Check out this prompt on GlyphHub', url })
+                  setShareHint('shared')
+                } else {
+                  await copyToClipboard(url)
+                  setShareHint('copied')
+                }
+              } catch {
+                try {
+                  const url = typeof window !== 'undefined' ? window.location.href : `/p/${params.id}`
+                  await copyToClipboard(url)
+                  setShareHint('copied')
+                } catch {}
+              } finally {
+                setTimeout(() => setShareHint(null), 1500)
+              }
+            }}
+          >
+            {shareHint === 'shared' ? 'Shared' : shareHint === 'copied' ? 'Link Copied' : 'Share URL'}
+          </button>
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid
-            const email = auth?.currentUser?.email || ''
             const canEdit = Boolean(uid && data.ownerId === uid)
-            const canDelete = canEdit || email === 'outersloth@gmail.com'
+            const canDelete = canEdit || isAdmin
             if (canEdit) {
               return (
                 <>
@@ -229,7 +281,7 @@ export default function PromptPage() {
                   createdAt: serverTimestamp(),
                   updatedAt: serverTimestamp(),
                 })
-                window.location.href = `/p/${newRef.id}`
+                router.push(`/p/${newRef.id}`)
               } catch {}
             }}
             className="text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)] pointer-events-auto"
@@ -240,8 +292,7 @@ export default function PromptPage() {
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid
-            const email = auth?.currentUser?.email || ''
-            const canDelete = Boolean(uid && (data.ownerId === uid || email === 'outersloth@gmail.com'))
+            const canDelete = Boolean(uid && (data.ownerId === uid || isAdmin))
             if (!canDelete) return null
             return (
               <button
@@ -251,7 +302,7 @@ export default function PromptPage() {
                     const db = getDb()
                     if (!db) return
                     await deleteDoc(doc(db, 'prompts', params.id))
-                    window.location.href = '/'
+                    router.push('/')
                   } catch {}
                 }}
                 className="text-red-400 ml-2"
@@ -337,5 +388,3 @@ export default function PromptPage() {
     </div>
   )
 }
-
-

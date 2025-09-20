@@ -50,6 +50,9 @@ Canonicalization rules:
 - `tags` lowercased; duplicates removed; sorted lexicographically
 - Omit unknown fields
 
+Notes:
+- UI-only metadata such as `preferredModel`, `description`, and `howToUse` are not encoded in the share code. The share code captures only the minimal, portable prompt fields above.
+
 ---
 
 ## 4) Encoding (reference)
@@ -135,4 +138,4 @@ export function decodeShareCode(code: string): Prompt {
 - No PII is encoded; share codes are content-only
 - Version bump to `PB2` if schema or algorithm changes
 - Decoding should work entirely offline
-
+- When copying from a prompt view that includes `{{variables}}`, substitutions are applied before encoding; the PB1 code represents the filled version at copy time.

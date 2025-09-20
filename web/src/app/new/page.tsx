@@ -41,6 +41,26 @@ export default function NewPromptPage() {
     loadPref()
   }, [])
 
+  // One-time draft hydration from sessionStorage (moved out of render)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem('gh_new_prompt_draft') : null
+      if (!raw) return
+      const draft = JSON.parse(raw)
+      sessionStorage.removeItem('gh_new_prompt_draft')
+      setForm(f => {
+        if (f.title || f.body) return f
+        return {
+          title: draft.title || '',
+          body: draft.body || '',
+          tags: Array.isArray(draft.tags) ? draft.tags : [],
+          sourceUrl: draft.sourceUrl || null,
+          visibility: draft.visibility || 'public',
+        }
+      })
+    } catch {}
+  }, [])
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -103,28 +123,6 @@ export default function NewPromptPage() {
   return (
     <div className="mx-auto max-w-[900px] py-8">
       <h1 className="font-display text-2xl mb-4">New Prompt</h1>
-      {/* Prefill from session storage once */}
-      {(() => {
-        if (typeof window !== 'undefined') {
-          const raw = sessionStorage.getItem('gh_new_prompt_draft')
-          if (raw) {
-            try {
-              const draft = JSON.parse(raw)
-              sessionStorage.removeItem('gh_new_prompt_draft')
-              if (!form.title && !form.body) {
-                setForm({
-                  title: draft.title || '',
-                  body: draft.body || '',
-                  tags: Array.isArray(draft.tags) ? draft.tags : [],
-                  sourceUrl: draft.sourceUrl || null,
-                  visibility: draft.visibility || 'public',
-                })
-              }
-            } catch {}
-          }
-        }
-        return null
-      })()}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm mb-1">Title</label>
@@ -203,5 +201,4 @@ export default function NewPromptPage() {
     </div>
   )
 }
-
 

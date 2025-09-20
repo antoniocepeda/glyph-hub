@@ -23,6 +23,8 @@ High-level architecture, data model, and flows aligned with the PRD.
 - `/collections` — listing; `/collections/new`; `/collections/[id]`; `/collections/[id]/edit`
 - `/help` — knowledge base; `/help/[slug]`
 - `/public` — browse all public prompts
+- `/trending` — engagement-sorted list
+- `/embed/p/[id]` — minimal embed view (iframe-friendly)
 - `(auth)/login` — email/password auth
 - `api/extract` — naive import extractor (server route)
 
@@ -70,7 +72,7 @@ High-level architecture, data model, and flows aligned with the PRD.
 ## 4) Security model
 
 - Public visibility: anyone can read
-- Unlisted: readable when direct link/share code is used (no listing)
+- Unlisted: conceptually meant to be "not listed" but accessible via direct link/share code. Current implementation treats `unlisted` as public-but-not-listed; token-gating TBD (see rules).
 - Private: only owner
 - Auth: Email/Password. Anonymous writes allowed only for creating public/unlisted prompts with `ownerId == 'anon'`.
 - Stats updates: constrained increments (views/copies non-decreasing; likes ±1) for signed-in users.
@@ -119,7 +121,7 @@ Full rules live in `web/firebase.rules`.
 - UI: shadcn/ui components + custom design tokens (see `design.md`)
 - State: React state/hooks; keep client logic thin
 - Data: Firestore SDK; hooks for reads/writes
-- Utils: `share-code.ts`, `validators.ts`, `format.ts`
+- Utils: `share-code.ts`, `validators.ts`, `checksum.ts`, `utils.ts`
 
 ---
 
@@ -143,4 +145,3 @@ Full rules live in `web/firebase.rules`.
 - Browser extension (MV3) posts to Firestore with auth
 - Embeds render compact card with copy actions
 - “Run” buttons (ChatGPT/Claude) composed via URL templates
-

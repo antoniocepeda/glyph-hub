@@ -7,11 +7,15 @@ export function NavLinks() {
   return (
     <div className="flex items-center gap-2">
       {user && (
-        <Link href="/collections" className="inline-flex items-center h-6 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]">Collections</Link>
+        <Link
+          href="/collections"
+          className="inline-flex items-center px-2 py-3 text-sm text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]"
+        >
+          Collections
+        </Link>
       )}
       {/* Import and Help moved/removed */}
     </div>
   )
 }
-
 

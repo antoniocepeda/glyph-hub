@@ -74,11 +74,33 @@ export default function EditPromptPage() {
           <label className="block text-sm mb-1">Tags</label>
           <input className="w-full rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)] px-3 py-2 text-sm" value={form.tags.join(', ')} onChange={e => setForm({ ...form, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm mb-1">Source URL (optional)</label>
+            <input
+              className="w-full rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)] px-3 py-2 text-sm"
+              value={form.sourceUrl ?? ''}
+              onChange={e => setForm({ ...form, sourceUrl: e.target.value || null })}
+              placeholder="https://..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Visibility</label>
+            <select
+              className="w-full rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)] px-3 py-2 text-sm"
+              value={form.visibility}
+              onChange={e => setForm({ ...form, visibility: e.target.value as PromptInput['visibility'] })}
+            >
+              <option value="public">Public</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+        </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={saving} className="rounded-[12px] px-4 py-2 text-sm bg-[var(--gh-cyan)] text-black">{saving ? 'Saving…' : 'Save'}</button>
       </form>
     </div>
   )
 }
-
 

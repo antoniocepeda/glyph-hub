@@ -23,7 +23,7 @@ export default function PromptEmbed() {
     load()
   }, [params.id])
 
-  if (!data) return <div style={{fontFamily:'system-ui',fontSize:12,color:'#999',padding:12}}>Loading…</div>
+  if (!data) return <div style={{fontFamily:'system-ui',fontSize:12,color:'#999',padding:12}}>Not found or private</div>
 
   return (
     <div style={{fontFamily:'system-ui',background:'transparent',color:'inherit',padding:12,borderRadius:12,border:'1px solid rgba(255,255,255,0.08)'}}>
@@ -32,5 +32,4 @@ export default function PromptEmbed() {
     </div>
   )
 }
-
 

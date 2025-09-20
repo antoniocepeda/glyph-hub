@@ -161,3 +161,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
+
+/* iOS/mobile ergonomics */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Prevent Safari zooming inputs on focus by ensuring >=16px */
+@media (max-width: 480px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
