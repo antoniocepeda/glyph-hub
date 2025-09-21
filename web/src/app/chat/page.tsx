@@ -1,5 +1,6 @@
 "use client"
 export const dynamic = 'force-dynamic'
+import { Suspense } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -432,6 +433,7 @@ export default function ChatPage() {
   }
 
   return (
+    <Suspense fallback={<div />}> 
     <div className="mx-auto max-w-[900px] py-6">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Chat</h1>
@@ -708,5 +710,6 @@ export default function ChatPage() {
         Chats are saved to your account. Requires REPLICATE_API_TOKEN on the server.
       </div>
     </div>
+    </Suspense>
   )
 }
