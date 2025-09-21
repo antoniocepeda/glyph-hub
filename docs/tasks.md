@@ -50,6 +50,14 @@ A concise, actionable task list based on the PRD and roadmap in `docs/developmen
 - [ ] QuickPaste visibility UI: use a radio group instead of three checkboxes
 - [ ] Remove unused `firebase-admin` from `web/package.json` (client app) to reduce install size and avoid accidental bundling
 
+### P3 — Docs & Deploy Hygiene
+
+- [x] Document env, deploy, and ignore policy in `web/README.md`
+- [x] Add production deploy runbook to `docs/development.md`
+- [x] Clarify env keys and import limits in `docs/developer-setup.md`
+- [ ] Move `themeColor` to `viewport` in affected routes (Next.js warning)
+- [ ] Fix ESLint warnings in `app/page.tsx` and `app/p/[id]/page.tsx`
+
 ## Phase 1 – MVP Foundation
 
 - [ ] Set up Firebase project and Firestore

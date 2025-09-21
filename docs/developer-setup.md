@@ -104,6 +104,29 @@ export default function AnalyticsBoot() {
 
 ---
 
+## 4.1) Environment files and Git ignore policy
+
+- The `web/.gitignore` ignores all `.env*` files except `.env.example` which is committed as a template.
+- Create `web/.env.local` for local development and `web/.env.production` for production builds.
+- Keys used by the app:
+  - Required: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`
+  - Optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+  - Import endpoint limits (server): `IMPORT_TIMEOUT_MS`, `IMPORT_MAX_BYTES`, `IMPORT_ALLOW_HOSTS`, `IMPORT_DENY_HOSTS`
+
+Copy template and create local file:
+
+```bash
+cd web
+cp .env.example .env.local
+# fill values
+```
+
+---
+
+## 7) Build, run, and deploy
+
+---
+
 ## 5) Firestore rules (MVP)
 
 Enforce visibility and ownership. Start with a minimal set and harden later.
@@ -181,6 +204,30 @@ Visit http://localhost:3000.
 Optional: A simple Express static server exists at the repo root (`index.js`) and serves `public/index.html` when run from the root. It is not required for the Next.js app.
 
 Security note (local dev): `/api/extract` currently fetches arbitrary URLs for import convenience. Before production, harden this route to block SSRF and large responses (see tasks).
+
+### 7.1) Production build & deploy (Firebase Hosting)
+
+The project is configured for Firebase Hosting with the frameworks integration.
+
+```bash
+cd web
+# optionally prepare a production env file (not committed)
+cp .env.local .env.production
+# ensure safe defaults for import limits
+echo "IMPORT_TIMEOUT_MS=5000" >> .env.production
+echo "IMPORT_MAX_BYTES=200000" >> .env.production
+
+# Build (Next.js reads .env.local; you can temporarily swap .env.production into .env.local)
+npm run build
+
+# Deploy Hosting + rules
+npm run deploy
+```
+
+Notes:
+- Hosting URL (prod): managed by Firebase for project `glyph-hub-5000`.
+- The frameworks deploy may create artifacts under `web/.firebase/` which are ignored in Git.
+- If using Analytics, ensure `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` is set before building.
 
 ---
 

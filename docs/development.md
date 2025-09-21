@@ -223,3 +223,41 @@ Notes:
 6. **UI polish** (dark mode, responsive layouts).
 
 ---
+
+## Production Deploy Runbook (Firebase Hosting + Next.js)
+
+1. Ensure `web/.env.production` contains all required keys:
+   - `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`
+   - Optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+   - Import limits (for `/api/extract`): `IMPORT_TIMEOUT_MS`, `IMPORT_MAX_BYTES`, `IMPORT_ALLOW_HOSTS`, `IMPORT_DENY_HOSTS`
+2. Build with production env (either swap into `.env.local` or export vars):
+   ```bash
+   cd web
+   cp .env.production .env.local
+   npm run build
+   ```
+3. Deploy Hosting + rules:
+   ```bash
+   npm run deploy
+   ```
+4. Verify deployment:
+   - Firebase Console → Hosting
+   - App URL responds, Auth initializes, Firestore reads work
+
+### SSRF and Import Limits
+
+The `/api/extract` endpoint enforces:
+- HTTPS only; 400 on non-HTTPS
+- Host/IP guards to block private, loopback, link-local, onion, and optionally deny hosts
+- Timeout (`IMPORT_TIMEOUT_MS`, default 5000ms)
+- Max response size (`IMPORT_MAX_BYTES`, default ~200 KB)
+- Allow/Deny host lists via `IMPORT_ALLOW_HOSTS` / `IMPORT_DENY_HOSTS`
+
+Tune these env vars per environment before deploy.
+
+### Known Warnings to Triage
+
+- Move `themeColor` from metadata export into `viewport` in affected routes
+- Address ESLint warnings in `app/page.tsx` and `app/p/[id]/page.tsx`
+
+---
