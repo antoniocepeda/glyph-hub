@@ -34,4 +34,5 @@ web/firebase-debug.log
 web/.cache/
 web/.parcel-cache/
 
+web/.firebase/
 
