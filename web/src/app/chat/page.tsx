@@ -1,9 +1,16 @@
 "use client"
 export const dynamic = 'force-dynamic'
-import ChatClient from '../_chat_disabled/page'
+import nextDynamic from 'next/dynamic'
+import { Suspense } from 'react'
+
+const ChatClient = nextDynamic(() => import('../_chat_disabled/page'), { ssr: false })
 
 export default function ChatPage() {
-  return <ChatClient />
+  return (
+    <Suspense fallback={<div />}> 
+      <ChatClient />
+    </Suspense>
+  )
 }
 
 
