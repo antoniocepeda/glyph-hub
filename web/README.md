@@ -68,3 +68,18 @@ firebase deploy --only firestore:rules
 ```
 
 Or in the Firebase Console → Firestore Database → Rules → paste contents of `firebase.rules`.
+
+### Environment & Git ignore
+
+- `.env.example` is committed as a template. Create your local env file:
+
+```bash
+cd web
+cp .env.example .env.local
+# fill in values in .env.local
+```
+
+- Real env files are ignored (`.env*`), only `.env.example` is tracked.
+- Generated/build outputs are ignored and should not be committed:
+  - `.next/`, `out/`, `node_modules/`, `.vercel/`, `.turbo/`, `.firebase/`
+- Firebase CLI/emulator deploys may create files under `.firebase/` — these are ignored.
