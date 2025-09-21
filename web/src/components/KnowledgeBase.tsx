@@ -76,12 +76,11 @@ export function KnowledgeBase() {
 
       <h3>FAQ</h3>
       <ul>
-        <li><b>Do I need API keys?</b> No, GlyphHub doesn’t call model APIs for you.</li>
+        <li><b>Do I need API keys?</b> For the Chat feature we use Replicate. The server needs a <code>REPLICATE_API_TOKEN</code> configured; prompts and sharing continue to work without any model API keys.</li>
         <li><b>Can I import from any site?</b> We best-effort extract text; complex pages might need manual cleanup.</li>
         <li><b>Is my private data safe?</b> Private prompts are visible only to you (and collaborators where applicable).</li>
       </ul>
     </div>
   )
 }
-
 

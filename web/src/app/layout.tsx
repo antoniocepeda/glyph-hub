@@ -14,10 +14,6 @@ const rajdhani = Rajdhani({ variable: "--font-rajdhani", weight: ["600","700"], 
 export const metadata: Metadata = {
   title: "GlyphHub",
   description: "Save, share, and remix AI prompts.",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0D0D0F" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
   other: {
     "format-detection": "telephone=no",
   },
@@ -39,6 +35,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0D0D0F" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
 };
 
 export default function RootLayout({

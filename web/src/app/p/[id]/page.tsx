@@ -219,6 +219,7 @@ export default function PromptPage() {
           >
             {shareHint === 'shared' ? 'Shared' : shareHint === 'copied' ? 'Link Copied' : 'Share URL'}
           </button>
+          <Link href={`/chat?pid=${params.id}&mode=system`} className="text-[var(--gh-cyan)]">Chat</Link>
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid

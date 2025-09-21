@@ -50,7 +50,8 @@ service cloud.firestore {
       function statsChangeAllowed(before, after) {
         return after.stats.views >= before.stats.views &&
                after.stats.copies >= before.stats.copies &&
-               // likes may go up or down by 1
+               // likes may go up or down by 1, but never below 0
+               after.stats.likes >= 0 &&
                (after.stats.likes == before.stats.likes ||
                 after.stats.likes == before.stats.likes + 1 ||
                 after.stats.likes == before.stats.likes - 1);
@@ -61,20 +62,13 @@ service cloud.firestore {
       allow read: if resource.data.visibility in ['public', 'unlisted'] ||
                    isOwner(resource.data.ownerId);
 
+      // Require authentication for all creates
       allow create: if (
-                      // Authenticated user may create with validation
-                      isSignedIn() &&
-                      request.resource.data.ownerId == request.auth.uid &&
-                      validPromptData(request.resource.data) &&
-                      allowedPromptKeysOnly(request.resource.data)
-                    ) || (
-                      // Unauthenticated users can post only public or unlisted prompts under ownerId 'anon'
-                      !isSignedIn() &&
-                      request.resource.data.ownerId == 'anon' &&
-                      request.resource.data.visibility in ['public', 'unlisted'] &&
-                      validPromptData(request.resource.data) &&
-                      allowedPromptKeysOnly(request.resource.data)
-                    );
+        isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        validPromptData(request.resource.data) &&
+        allowedPromptKeysOnly(request.resource.data)
+      );
       allow update: if (
         // owner full edit but ownerId cannot change
         (isOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId && validPromptData(request.resource.data) && allowedPromptKeysOnly(request.resource.data)) ||
@@ -93,6 +87,12 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if true;
       allow create, update: if isOwner(uid);
+    }
+
+    // User model favorites: users/{uid}/models/favorites/items/{slug}
+    match /users/{uid}/models/favorites/items/{slug} {
+      allow read: if isOwner(uid);
+      allow create, update, delete: if isOwner(uid);
     }
 
     match /collections/{id} {
@@ -127,6 +127,27 @@ service cloud.firestore {
     match /users/{uid}/favorites/{promptId} {
       allow read: if true; // favorites list can be public or later restricted
       allow create, update, delete: if isOwner(uid);
+    }
+
+    // Chats: transcripts saved per user
+    match /chats/{id} {
+      function allowedChatKeysOnly(data) {
+        return data.keys().hasOnly([
+          'ownerId', 'model', 'system', 'messages', 'promptId', 'title', 'createdAt', 'updatedAt'
+        ]);
+      }
+      allow read: if isOwner(resource.data.ownerId);
+      allow create: if (
+        isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        allowedChatKeysOnly(request.resource.data)
+      );
+      allow update: if (
+        isOwner(resource.data.ownerId) &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        allowedChatKeysOnly(request.resource.data)
+      );
+      allow delete: if isOwner(resource.data.ownerId);
     }
   }
 }

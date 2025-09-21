@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { PromptSchema, type PromptInput, canonicalizePrompt } from '@/lib/validators'
 import { computeChecksum } from '@/lib/checksum'
@@ -13,6 +14,7 @@ import { containsBannedWords } from '@/lib/utils'
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)
 
 export default function NewPromptPage() {
+  const router = useRouter()
   const [form, setForm] = useState<PromptInput>({ title: '', body: '', tags: [], sourceUrl: null, visibility: 'public' })
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -68,6 +70,13 @@ export default function NewPromptPage() {
     try {
       const auth = getFirebaseAuth()
       const user = auth?.currentUser
+      if (!user) {
+        setError('Please sign in to create a prompt')
+        setSaving(false)
+        // Navigate to login for convenience
+        try { router.push('/login') } catch {}
+        return
+      }
       const parsed = PromptSchema.parse(form)
       const canonical = canonicalizePrompt(parsed)
       const checksum = computeChecksum(canonical.body)
@@ -77,33 +86,19 @@ export default function NewPromptPage() {
       const db = getDb()
       if (!db) throw new Error('Firebase is not configured. Add .env.local')
       // Deduplication: only check client-side if signed-in (rules allow owner read)
-      if (user) {
-        const dup = await getDocs(query(collection(db, 'prompts'), where('checksum', '==', checksum)))
-        if (!dup.empty) throw new Error('A similar prompt already exists. Consider forking it.')
-      }
-      if (!user) {
-        const ref = doc(collection(db, 'prompts'), id)
-        await setDoc(ref, {
-          ...canonical,
-          ownerId: 'anon',
-          checksum,
-          stats: { views: 0, copies: 0, likes: 0 },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      } else {
-        const ref = doc(collection(db, 'prompts'), id)
-        await setDoc(ref, {
-          ...canonical,
-          ownerId: user.uid,
-          checksum,
-          stats: { views: 0, copies: 0, likes: 0 },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      }
+      const dup = await getDocs(query(collection(db, 'prompts'), where('checksum', '==', checksum)))
+      if (!dup.empty) throw new Error('A similar prompt already exists. Consider forking it.')
+      const ref = doc(collection(db, 'prompts'), id)
+      await setDoc(ref, {
+        ...canonical,
+        ownerId: user.uid,
+        checksum,
+        stats: { views: 0, copies: 0, likes: 0 },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
       // Update user's lastCreateAt for simple per-user rate limiting in rules (only if signed-in)
-      if (user) await setDoc(doc(db, 'users', user.uid), { lastCreateAt: serverTimestamp() }, { merge: true })
+      await setDoc(doc(db, 'users', user.uid), { lastCreateAt: serverTimestamp() }, { merge: true })
       const code = encodeShareCode(canonical)
       setShareCode(code)
       // TODO: route to /p/[id] after we scaffold it
@@ -201,4 +196,3 @@ export default function NewPromptPage() {
     </div>
   )
 }
-

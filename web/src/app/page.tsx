@@ -243,41 +243,12 @@ function QuickPaste() {
             try {
               const vis = advanced ? visibility : 'public'
               const user = getFirebaseAuth()?.currentUser
-              if (!user && vis === 'private') {
-                throw new Error('Please sign in to save as private')
-              }
-
               if (!user) {
-                const db = getDb()
-                if (!db) throw new Error('No DB')
-                const id = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)()
-                const ref = doc(fsCollection(db, 'prompts'), id)
-                const tags = advanced ? tagsValue.split(',').map(t => t.trim()).filter(Boolean) : []
-                const src = advanced && sourceUrl.trim() ? sourceUrl.trim() : null
-                const extras: Record<string, unknown> = {}
-                if (advanced) {
-                  if (preferredModel.trim()) extras.preferredModel = preferredModel.trim()
-                  if (description.trim()) extras.description = description.trim()
-                  if (howToUse.trim()) extras.howToUse = howToUse.trim()
-                }
-                const canonical = canonicalizePrompt({
-                  title: title || 'Untitled',
-                  body: body.trim(),
-                  tags,
-                  sourceUrl: src,
-                  visibility: vis,
-                })
-                await setDoc(ref, {
-                  ...canonical,
-                  ownerId: 'anon',
-                  checksum: computeChecksum(canonical.body),
-                  stats: { views: 0, copies: 0, likes: 0 },
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                  ...extras,
-                })
-                router.push(`/p/${id}`)
-              } else {
+                setErr('Please sign in to save')
+                setSaving(false)
+                try { router.push('/login') } catch {}
+                return
+              }
                 const db = getDb()
                 if (!db) throw new Error('No DB')
                 const id = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)()
@@ -307,7 +278,6 @@ function QuickPaste() {
                   ...extras,
                 })
                 router.push(`/p/${id}`)
-              }
             } catch (e) {
               const msg = e instanceof Error ? e.message : 'Failed'
               setErr(msg)
