@@ -19,12 +19,12 @@ const FALLBACK_CURATED: ModelInfo[] = [
 ]
 
 function parseEnvSlugs(): string[] {
-  const raw = process.env.REPLICATE_COLLECTION_SLUGS || 'text-generation,open-source-llms'
+  const raw = process.env['REPLICATE_COLLECTION_SLUGS'] || 'text-generation,open-source-llms'
   return raw.split(',').map(s => s.trim()).filter(Boolean)
 }
 
 export async function GET(req: NextRequest) {
-  const token = process.env.REPLICATE_API_TOKEN
+  const token = process.env['REPLICATE_API_TOKEN']
   const { searchParams } = new URL(req.url)
   const slugsParam = searchParams.get('slugs')
   const collections = slugsParam ? slugsParam.split(',').map(s => s.trim()).filter(Boolean) : parseEnvSlugs()

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 })
     }
 
-    const token = (apiKey as string) || process.env.REPLICATE_API_TOKEN
+    const token = (apiKey as string) || process.env['REPLICATE_API_TOKEN']
     if (!token) {
       return NextResponse.json({ error: 'Server missing REPLICATE_API_TOKEN' }, { status: 500 })
     }

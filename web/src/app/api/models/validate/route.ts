@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!slug || !slug.includes('/')) {
     return NextResponse.json({ ok: false, slug, message: 'Provide slug as owner/name' })
   }
-  const token = process.env.REPLICATE_API_TOKEN
+  const token = process.env['REPLICATE_API_TOKEN']
   if (!token) {
     return NextResponse.json({ ok: false, slug, message: 'Missing server token' })
   }
