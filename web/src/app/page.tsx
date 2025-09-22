@@ -170,7 +170,7 @@ function QuickPaste() {
               className="w-full rounded-[10px] bg-[var(--gh-bg-soft)] border border-[var(--gh-border)] px-3 py-2 text-sm"
               value={preferredModel}
               onChange={e => setPreferredModel(e.target.value)}
-              placeholder="e.g., gpt-4o, llama-3-70b, claude-3.5"
+              placeholder="e.g., gpt-5, claude-4-sonnet, flux.1-dev"
             />
           </div>
           <div>

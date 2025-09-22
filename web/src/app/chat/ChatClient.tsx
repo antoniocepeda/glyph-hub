@@ -3,13 +3,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
+import { CURATED_MODELS, CURATED_MODEL_BY_SLUG, CURATED_MODEL_ORDER } from '@/lib/replicateCurated'
 import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 
 type Role = 'system'|'user'|'assistant'
 type Message = { role: Role; content: string }
 
-// Use widely available, known-good slugs on Replicate
-const DEFAULT_MODEL = 'meta/meta-llama-3-8b-instruct'
+type CuratedModel = { slug: string; displayName: string; description?: string; category?: string }
+
+const DEFAULT_CURATED: CuratedModel[] = CURATED_MODELS.map(m => ({
+  slug: m.slug,
+  displayName: m.displayName,
+  description: m.description,
+  category: m.category,
+}))
+
+const DEFAULT_CURATED_MAP = new Map(DEFAULT_CURATED.map(m => [m.slug, m]))
+const DEFAULT_CURATED_ORDER = new Map(CURATED_MODEL_ORDER)
+const DEFAULT_CURATED_SLUGS = new Set(DEFAULT_CURATED.map(m => m.slug))
+
+const DEFAULT_MODEL = DEFAULT_CURATED[0]?.slug || 'openai/gpt-5'
 
 function extractPlaceholders(text: string): string[] {
   const set = new Set<string>()
@@ -42,7 +55,7 @@ export default function ChatClient() {
   const tokensRef = useRef<string[]>([])
   const [readable, setReadable] = useState<boolean>(false)
   const [showBrowse, setShowBrowse] = useState<boolean>(false)
-  const [curated, setCurated] = useState<{ slug: string; displayName?: string; description?: string }[]>([])
+  const [curated, setCurated] = useState<CuratedModel[]>(DEFAULT_CURATED)
   const [favorites, setFavorites] = useState<string[]>([])
   const [recent, setRecent] = useState<string[]>([])
   const [modelFilter, setModelFilter] = useState<string>('')
@@ -130,12 +143,7 @@ export default function ChatClient() {
           const d = snap.data() as any
           setChatId(snap.id)
           if (typeof d.model === 'string') {
-            const known = new Set([
-              'meta/meta-llama-3-8b-instruct',
-              'meta/meta-llama-3-70b-instruct',
-              'mistralai/mixtral-8x7b-instruct',
-            ])
-            if (known.has(d.model)) {
+            if (DEFAULT_CURATED_SLUGS.has(d.model)) {
               setModel(d.model)
             } else {
               setModel('__custom__')
@@ -157,14 +165,41 @@ export default function ChatClient() {
   // Load curated models from /api/models; load favorites and recents from Firestore
   useEffect(() => {
     async function loadModels() {
+      let loaded = false
       try {
         const res = await fetch('/api/models')
         if (res.ok) {
           const j = await res.json()
           const items = Array.isArray(j.curated) ? j.curated : []
-          setCurated(items.map((m: any) => ({ slug: m.slug || `${m.owner}/${m.name}`, displayName: m.displayName || undefined, description: m.description || undefined })))
+          if (items.length > 0) {
+            const seen = new Map<string, CuratedModel>()
+            for (const raw of items) {
+              const owner = (raw.owner || raw.user || '').toString()
+              const name = (raw.name || raw.model || '').toString()
+              const slug = (raw.slug || (owner && name ? `${owner}/${name}` : '')).toString().trim()
+              if (!slug || !slug.includes('/')) continue
+              const meta = CURATED_MODEL_BY_SLUG.get(slug) || DEFAULT_CURATED_MAP.get(slug)
+              const displayName = (raw.displayName || raw.display_name || raw.pretty_name || raw.name || meta?.displayName || slug).toString()
+              const descRaw = (raw.description || raw.readme || meta?.description || '').toString().trim()
+              const description = descRaw.length > 0 ? descRaw : undefined
+              const category = (raw.category || meta?.category) as string | undefined
+              seen.set(slug, { slug, displayName, description, category })
+            }
+            if (seen.size > 0) {
+              const next = Array.from(seen.values()).sort((a, b) => {
+                const ai = DEFAULT_CURATED_ORDER.get(a.slug) ?? Number.MAX_SAFE_INTEGER
+                const bi = DEFAULT_CURATED_ORDER.get(b.slug) ?? Number.MAX_SAFE_INTEGER
+                return ai - bi
+              })
+              setCurated(next)
+              loaded = true
+            }
+          }
         }
       } catch {}
+      if (!loaded) {
+        setCurated(DEFAULT_CURATED)
+      }
       try {
         const db = getDb()
         const uid = getFirebaseAuth()?.currentUser?.uid
@@ -424,5 +459,3 @@ export default function ChatClient() {
     </div>
   )
 }
-
-

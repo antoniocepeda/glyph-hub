@@ -6,12 +6,26 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import { CURATED_MODEL_GROUPS, CURATED_MODELS, CURATED_MODEL_BY_SLUG, CURATED_MODEL_ORDER } from '@/lib/replicateCurated'
 
 type Role = 'system'|'user'|'assistant'
 type Message = { role: Role; content: string }
 
-// Use widely available, known-good slugs on Replicate
-const DEFAULT_MODEL = 'meta/meta-llama-3-8b-instruct'
+type CuratedModel = { slug: string; displayName: string; description?: string; category?: string }
+
+const DEFAULT_CURATED: CuratedModel[] = CURATED_MODELS.map(m => ({
+  slug: m.slug,
+  displayName: m.displayName,
+  description: m.description,
+  category: m.category,
+}))
+
+const DEFAULT_CURATED_MAP = new Map(DEFAULT_CURATED.map(m => [m.slug, m]))
+const DEFAULT_CURATED_ORDER = new Map(CURATED_MODEL_ORDER)
+const DEFAULT_CURATED_SLUGS = new Set(DEFAULT_CURATED.map(m => m.slug))
+
+// Use the top Replicate slugs defined in docs/replicate-top15-models-guide.md
+const DEFAULT_MODEL = DEFAULT_CURATED[0]?.slug || 'openai/gpt-5'
 
 function extractPlaceholders(text: string): string[] {
   const set = new Set<string>()
@@ -44,7 +58,7 @@ export default function ChatPage() {
   const tokensRef = useRef<string[]>([])
   const [readable, setReadable] = useState<boolean>(false)
   const [showBrowse, setShowBrowse] = useState<boolean>(false)
-  const [curated, setCurated] = useState<{ slug: string; displayName?: string; description?: string }[]>([])
+  const [curated, setCurated] = useState<CuratedModel[]>(DEFAULT_CURATED)
   const [favorites, setFavorites] = useState<string[]>([])
   const [recent, setRecent] = useState<string[]>([])
   const [modelFilter, setModelFilter] = useState<string>('')
@@ -141,12 +155,7 @@ export default function ChatPage() {
           const d = snap.data() as any
           setChatId(snap.id)
           if (typeof d.model === 'string') {
-            const known = new Set([
-              'meta/meta-llama-3-8b-instruct',
-              'meta/meta-llama-3-70b-instruct',
-              'mistralai/mixtral-8x7b-instruct',
-            ])
-            if (known.has(d.model)) {
+            if (DEFAULT_CURATED_SLUGS.has(d.model)) {
               setModel(d.model)
             } else {
               setModel('__custom__')
@@ -168,14 +177,41 @@ export default function ChatPage() {
   // Load curated models from /api/models; load favorites and recents from Firestore
   useEffect(() => {
     async function loadModels() {
+      let loaded = false
       try {
         const res = await fetch('/api/models')
         if (res.ok) {
           const j = await res.json()
           const items = Array.isArray(j.curated) ? j.curated : []
-          setCurated(items.map((m: any) => ({ slug: m.slug || `${m.owner}/${m.name}`, displayName: m.displayName || undefined, description: m.description || undefined })))
+          if (items.length > 0) {
+            const seen = new Map<string, CuratedModel>()
+            for (const raw of items) {
+              const owner = (raw.owner || raw.user || '').toString()
+              const name = (raw.name || raw.model || '').toString()
+              const slug = (raw.slug || (owner && name ? `${owner}/${name}` : '')).toString().trim()
+              if (!slug || !slug.includes('/')) continue
+              const meta = CURATED_MODEL_BY_SLUG.get(slug) || DEFAULT_CURATED_MAP.get(slug)
+              const displayName = (raw.displayName || raw.display_name || raw.pretty_name || raw.name || meta?.displayName || slug).toString()
+              const descRaw = (raw.description || raw.readme || meta?.description || '').toString().trim()
+              const description = descRaw.length > 0 ? descRaw : undefined
+              const category = (raw.category || meta?.category) as string | undefined
+              seen.set(slug, { slug, displayName, description, category })
+            }
+            if (seen.size > 0) {
+              const next = Array.from(seen.values()).sort((a, b) => {
+                const ai = DEFAULT_CURATED_ORDER.get(a.slug) ?? Number.MAX_SAFE_INTEGER
+                const bi = DEFAULT_CURATED_ORDER.get(b.slug) ?? Number.MAX_SAFE_INTEGER
+                return ai - bi
+              })
+              setCurated(next)
+              loaded = true
+            }
+          }
         }
       } catch {}
+      if (!loaded) {
+        setCurated(DEFAULT_CURATED)
+      }
       try {
         const db = getDb()
         const uid = getFirebaseAuth()?.currentUser?.uid
@@ -197,6 +233,34 @@ export default function ChatPage() {
     }
     loadModels()
   }, [])
+
+  const groupedCurated = useMemo(() => {
+    const list = curated.length > 0 ? curated : DEFAULT_CURATED
+    return CURATED_MODEL_GROUPS.map(group => {
+      const items = list.filter(item => {
+        const meta = DEFAULT_CURATED_MAP.get(item.slug)
+        const category = item.category || meta?.category
+        return category === group.category
+      })
+      return { category: group.category, items }
+    }).filter(group => group.items.length > 0)
+  }, [curated])
+
+  const filteredCuratedGroups = useMemo(() => {
+    const query = modelFilter.trim().toLowerCase()
+    if (!query) return groupedCurated
+    return groupedCurated
+      .map(group => {
+        const items = group.items.filter(item => {
+          const label = item.displayName.toLowerCase()
+          const slug = item.slug.toLowerCase()
+          const desc = (item.description || '').toLowerCase()
+          return label.includes(query) || slug.includes(query) || desc.includes(query)
+        })
+        return { category: group.category, items }
+      })
+      .filter(group => group.items.length > 0)
+  }, [groupedCurated, modelFilter])
 
   // Validate selected/custom model slug
   useEffect(() => {
@@ -472,16 +536,13 @@ export default function ChatPage() {
                   ))}
                 </optgroup>
               )}
-              {curated.length > 0 && (
-                <optgroup label="Curated">
-                  {curated.map(m => (
+              {groupedCurated.map(group => (
+                <optgroup key={`cur-group-${group.category}`} label={group.category}>
+                  {group.items.map(m => (
                     <option key={`cur-${m.slug}`} value={m.slug}>{m.displayName || m.slug}</option>
                   ))}
                 </optgroup>
-              )}
-              <option value="meta/meta-llama-3-8b-instruct">Llama 3 8B Instruct</option>
-              <option value="meta/meta-llama-3-70b-instruct">Llama 3 70B Instruct</option>
-              <option value="mistralai/mixtral-8x7b-instruct">Mixtral 8x7B Instruct</option>
+              ))}
               <option value="__custom__">Custom…</option>
             </select>
             <button type="button" className="text-sm text-[var(--gh-cyan)] whitespace-nowrap shrink-0" onClick={() => setShowBrowse(true)}>Browse</button>
@@ -537,7 +598,7 @@ export default function ChatPage() {
           {model === '__custom__' && (
             <input
               className="mt-2 w-full rounded-[10px] bg-[var(--gh-surface)] border border-[var(--gh-border)] px-2 py-2 text-sm"
-              placeholder="owner/name (e.g., meta/meta-llama-3-8b-instruct)"
+              placeholder="owner/name (e.g., openai/gpt-5)"
               value={customModel}
               onChange={e => setCustomModel(e.target.value)}
             />
@@ -580,54 +641,55 @@ export default function ChatPage() {
               value={modelFilter}
               onChange={e => setModelFilter(e.target.value)}
             />
-            <div className="mt-3 grid gap-2">
-              {curated
-                .filter(m => {
-                  const q = modelFilter.trim().toLowerCase()
-                  if (!q) return true
-                  return m.slug.toLowerCase().includes(q) || (m.displayName || '').toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q)
-                })
-                .map(m => (
-                <div key={m.slug} className="flex items-start justify-between gap-3 rounded-[10px] bg-[var(--gh-bg-soft)] border border-[var(--gh-border)] p-3">
-                  <div>
-                    <div className="text-sm font-medium">{m.displayName || m.slug}</div>
-                    <div className="text-xs text-[var(--gh-text-muted)]">{m.slug}</div>
-                    {m.description && <div className="text-xs mt-1 text-[var(--gh-text-dim)]">{m.description}</div>}
-                  </div>
-                  <div className="flex-shrink-0 flex items-center gap-2">
-                    <button
-                      className={`text-sm ${favorites.includes(m.slug) ? 'text-[var(--gh-cyan)]' : 'text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]'}`}
-                      onClick={async () => {
-                        try {
-                          const db = getDb()
-                          const uid = getFirebaseAuth()?.currentUser?.uid
-                          if (!db || !uid) return
-                          const favId = m.slug.replace(/\//g, '__')
-                          const ref = doc(db, 'users', uid, 'models', 'favorites', 'items', favId)
-                          if (!favorites.includes(m.slug)) {
-                            await setDoc(ref, { slug: m.slug, addedAt: new Date() })
-                            setFavorites(prev => Array.from(new Set([...prev, m.slug])))
-                          } else {
-                            await deleteDoc(ref)
-                            setFavorites(prev => prev.filter(s => s !== m.slug))
-                          }
-                        } catch {}
-                      }}
-                    >
-                      {favorites.includes(m.slug) ? '★ Starred' : '☆ Star'}
-                    </button>
-                    <button
-                      className="text-sm text-[var(--gh-cyan)]"
-                      onClick={() => {
-                        setModel(m.slug)
-                        setShowBrowse(false)
-                      }}
-                    >Use</button>
+            <div className="mt-3 space-y-4">
+              {filteredCuratedGroups.map(group => (
+                <div key={`browse-group-${group.category}`}>
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--gh-text-muted)]">{group.category}</div>
+                  <div className="mt-2 grid gap-2">
+                    {group.items.map(m => (
+                      <div key={m.slug} className="flex items-start justify-between gap-3 rounded-[10px] bg-[var(--gh-bg-soft)] border border-[var(--gh-border)] p-3">
+                        <div>
+                          <div className="text-sm font-medium">{m.displayName || m.slug}</div>
+                          <div className="text-xs text-[var(--gh-text-muted)]">{m.slug}</div>
+                          {m.description && <div className="text-xs mt-1 text-[var(--gh-text-dim)]">{m.description}</div>}
+                        </div>
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          <button
+                            className={`text-sm ${favorites.includes(m.slug) ? 'text-[var(--gh-cyan)]' : 'text-[var(--gh-text-muted)] hover:text-[var(--gh-cyan)]'}`}
+                            onClick={async () => {
+                              try {
+                                const db = getDb()
+                                const uid = getFirebaseAuth()?.currentUser?.uid
+                                if (!db || !uid) return
+                                const favId = m.slug.replace(/\//g, '__')
+                                const ref = doc(db, 'users', uid, 'models', 'favorites', 'items', favId)
+                                if (!favorites.includes(m.slug)) {
+                                  await setDoc(ref, { slug: m.slug, addedAt: new Date() })
+                                  setFavorites(prev => Array.from(new Set([...prev, m.slug])))
+                                } else {
+                                  await deleteDoc(ref)
+                                  setFavorites(prev => prev.filter(s => s !== m.slug))
+                                }
+                              } catch {}
+                            }}
+                          >
+                            {favorites.includes(m.slug) ? '★ Starred' : '☆ Star'}
+                          </button>
+                          <button
+                            className="text-sm text-[var(--gh-cyan)]"
+                            onClick={() => {
+                              setModel(m.slug)
+                              setShowBrowse(false)
+                            }}
+                          >Use</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
-              {curated.length === 0 && (
-                <div className="text-sm text-[var(--gh-text-muted)]">No curated models available.</div>
+              {filteredCuratedGroups.length === 0 && (
+                <div className="text-sm text-[var(--gh-text-muted)]">No curated models match your search.</div>
               )}
             </div>
           </div>

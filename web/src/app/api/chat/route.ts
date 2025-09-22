@@ -36,29 +36,47 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = buildPrompt(messages as Msg[], typeof system === 'string' ? system : undefined)
-    function getProfile(slug: string) {
+    function getProfile(slug: string): { promptKey: string; systemKey: string | null; maxKey: string | null; tempKey: string } {
       const s = (slug || '').toLowerCase()
-      // Defaults work for many instruct models
+      const nonTextPatterns = [
+        'stable-diffusion',
+        'flux.1',
+        'flash-image',
+        'veo-',
+        'pixverse',
+        'hailuo',
+        'ray-2',
+        'gpt-image',
+        'image-edit',
+        'lyria',
+      ]
+      if (nonTextPatterns.some(p => s.includes(p))) {
+        return { promptKey: 'prompt', systemKey: null, maxKey: null, tempKey: 'temperature' }
+      }
+
       let promptKey = 'prompt'
-      let systemKey = 'system_prompt'
-      let maxKey = 'max_tokens'
-      let tempKey = 'temperature'
-      if (s.includes('mixtral') || s.includes('phi-3') || s.includes('qwen')) {
-        // Common variants using max_new_tokens
+      let systemKey: string | null = 'system'
+      let maxKey: string | null = 'max_tokens'
+      const tempKey = 'temperature'
+
+      if (s.includes('claude')) {
+        maxKey = 'max_output_tokens'
+      }
+      if (s.includes('deepseek')) {
         maxKey = 'max_new_tokens'
       }
-      // Some models use 'system' instead of 'system_prompt'
-      if (s.includes('gemma')) {
-        systemKey = 'system'
+      if (s.includes('granite')) {
+        systemKey = 'system_prompt'
       }
+
       return { promptKey, systemKey, maxKey, tempKey }
     }
     const keys = getProfile(model)
     const input: Record<string, unknown> = {}
     input[keys.promptKey] = prompt
     if (typeof temperature === 'number') input[keys.tempKey] = temperature
-    if (typeof maxTokens === 'number') input[keys.maxKey] = maxTokens
-    if (typeof system === 'string') input[keys.systemKey] = system
+    if (typeof maxTokens === 'number' && keys.maxKey) input[keys.maxKey] = maxTokens
+    if (typeof system === 'string' && keys.systemKey) input[keys.systemKey] = system
 
     const replicate = new Replicate({ auth: token })
     const encoder = new TextEncoder()
