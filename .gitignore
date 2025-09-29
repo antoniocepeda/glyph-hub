@@ -11,6 +11,7 @@ web/.vercel/
 # Env files
 web/.env*
 !.env.example
+web/firebase-service-account.json
 
 # Logs
 npm-debug.log*

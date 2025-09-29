@@ -11,7 +11,18 @@ import { copyToClipboard } from '@/lib/utils'
 export default function PromptPage() {
   const params = useParams() as { id: string }
   const router = useRouter()
-  type PromptData = { id: string; title: string; body: string; tags: string[]; sourceUrl: string | null; visibility: 'public' | 'unlisted' | 'private'; ownerId?: string; forkOf?: string; checksum?: string }
+  type PromptData = {
+    id: string
+    title: string
+    body: string
+    tags: string[]
+    sourceUrl: string | null
+    visibility: 'public' | 'unlisted' | 'private'
+    ownerId: string | null
+    forkOf?: string
+    checksum?: string
+    createdByType?: 'anonymous' | 'user'
+  }
   const [data, setData] = useState<PromptData | null>(null)
   const [collections, setCollections] = useState<{ id: string; title: string }[]>([])
   const [addStatus, setAddStatus] = useState<string>('')
@@ -58,12 +69,16 @@ export default function PromptPage() {
       const auth = getFirebaseAuth()
       const user = auth?.currentUser
       if (user) {
+        const email = user.email?.toLowerCase()
+        const isPrivilegedEmail = email === 'outersloth@gmail.com'
         try {
           const res = await getIdTokenResult(user)
           type CustomClaims = { role?: string; admin?: boolean }
           const claims = res.claims as unknown as CustomClaims
-          setIsAdmin(Boolean(claims.role === 'admin' || claims.admin === true))
-        } catch {}
+          setIsAdmin(Boolean(claims.role === 'admin' || claims.admin === true || isPrivilegedEmail))
+        } catch {
+          setIsAdmin(isPrivilegedEmail)
+        }
         const snaps = await getDocs(query(collection(db, 'collections'), where('ownerId', '==', user.uid)))
         setCollections(snaps.docs.map(d => ({ id: d.id, title: (d.data() as { title?: string }).title || '' })))
         const favDoc = await getDoc(doc(db, 'users', user.uid, 'favorites', params.id))
@@ -293,12 +308,20 @@ export default function PromptPage() {
           {(() => {
             const auth = getFirebaseAuth()
             const uid = auth?.currentUser?.uid
-            const canDelete = Boolean(uid && (data.ownerId === uid || isAdmin))
+            const email = auth?.currentUser?.email?.toLowerCase()
+            const canDelete = Boolean(
+              uid &&
+              (data.ownerId === uid || isAdmin || email === 'outersloth@gmail.com')
+            )
             if (!canDelete) return null
             return (
               <button
                 onClick={async () => {
-                  if (!confirm('Delete this prompt? This cannot be undone.')) return
+                  const confirmation = prompt('Type DELETE to permanently remove this prompt.')
+                  if (confirmation !== 'DELETE') {
+                    alert('Prompt not deleted. Type DELETE exactly to confirm.')
+                    return
+                  }
                   try {
                     const db = getDb()
                     if (!db) return

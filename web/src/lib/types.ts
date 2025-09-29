@@ -13,7 +13,8 @@ export type PromptDoc = {
   tags: string[]
   sourceUrl: string | null
   visibility: Visibility
-  ownerId?: string
+  ownerId: string | null
+  createdByType?: 'anonymous' | 'user'
   forkOf?: string
   checksum?: string
   stats?: PromptStats
@@ -25,5 +26,3 @@ export type CollectionDoc = {
   visibility: 'public' | 'private'
   ownerId?: string
 }
-
-

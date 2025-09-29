@@ -3,15 +3,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { PromptSchema, type PromptInput, canonicalizePrompt } from '@/lib/validators'
-import { computeChecksum } from '@/lib/checksum'
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
-import { customAlphabet } from 'nanoid'
+import { doc, getDoc } from 'firebase/firestore'
 import { encodeShareCode } from '@/lib/share-code'
-import { containsBannedWords } from '@/lib/utils'
-// Anonymous auth disabled in production; require sign-in
+// Anonymous submissions flow through the Quick Paste API
 
-const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)
+const BODY_LIMIT = 7331
 
 export default function NewPromptPage() {
   const router = useRouter()
@@ -19,6 +16,7 @@ export default function NewPromptPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [shareCode, setShareCode] = useState<string | null>(null)
+  const [botField, setBotField] = useState('')
 
   // Load default visibility from user preferences
   useEffect(() => {
@@ -69,39 +67,53 @@ export default function NewPromptPage() {
     setSaving(true)
     try {
       const auth = getFirebaseAuth()
-      const user = auth?.currentUser
-      if (!user) {
-        setError('Please sign in to create a prompt')
+      const user = auth?.currentUser ?? null
+      if (!user && form.visibility === 'private') {
+        setError('Sign in to save private prompts.')
         setSaving(false)
-        // Navigate to login for convenience
-        try { router.push('/login') } catch {}
         return
       }
+
       const parsed = PromptSchema.parse(form)
       const canonical = canonicalizePrompt(parsed)
-      const checksum = computeChecksum(canonical.body)
-      const banned = containsBannedWords(canonical.body)
-      if (banned) throw new Error(`Content not allowed: ${banned}`)
-      const id = nanoid()
-      const db = getDb()
-      if (!db) throw new Error('Firebase is not configured. Add .env.local')
-      // Deduplication: only check client-side if signed-in (rules allow owner read)
-      const dup = await getDocs(query(collection(db, 'prompts'), where('checksum', '==', checksum)))
-      if (!dup.empty) throw new Error('A similar prompt already exists. Consider forking it.')
-      const ref = doc(collection(db, 'prompts'), id)
-      await setDoc(ref, {
-        ...canonical,
-        ownerId: user.uid,
-        checksum,
-        stats: { views: 0, copies: 0, likes: 0 },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+
+      const token = user ? await user.getIdToken() : null
+      const payload = {
+        title: canonical.title,
+        body: canonical.body,
+        tags: canonical.tags,
+        sourceUrl: canonical.sourceUrl ?? undefined,
+        visibility: canonical.visibility,
+        honeypot: botField,
+      }
+
+      const headers: Record<string, string> = { 'content-type': 'application/json' }
+      if (token) headers.authorization = `Bearer ${token}`
+      const res = await fetch('/api/quick-paste', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
       })
-      // Update user's lastCreateAt for simple per-user rate limiting in rules (only if signed-in)
-      await setDoc(doc(db, 'users', user.uid), { lastCreateAt: serverTimestamp() }, { merge: true })
-      const code = encodeShareCode(canonical)
-      setShareCode(code)
-      // TODO: route to /p/[id] after we scaffold it
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'Failed' }))
+        const msg = typeof errJson.error === 'string' ? errJson.error : 'Failed'
+        if (res.status === 429 && typeof errJson.retryAt === 'number') {
+          const retry = new Date(errJson.retryAt)
+          throw new Error(`Rate limited. Try again at ${retry.toLocaleTimeString()}.`)
+        }
+        if (msg === 'invalid_payload' || msg === 'invalid_prompt') throw new Error('Check your prompt fields and try again.')
+        if (msg === 'rate_limited') throw new Error('Too many submissions. Please slow down.')
+        if (msg === 'duplicate_prompt') throw new Error('A similar prompt already exists. Consider forking it.')
+        if (msg === 'duplicate_check_failed') throw new Error('Unable to verify duplicates right now. Please try again later.')
+        if (msg === 'visibility_not_allowed') throw new Error('Sign in to save private prompts.')
+        if (msg === 'content_not_allowed') throw new Error('Content not allowed. Adjust your prompt and try again.')
+        if (msg === 'bot_detected') throw new Error('Submission flagged as automated. Refresh and try again.')
+        throw new Error(msg === 'server_unconfigured' ? 'Server is not ready for prompt creation yet.' : 'Failed to save prompt.')
+      }
+      const json = await res.json()
+      if (!json?.id) throw new Error('Unexpected server response.')
+      setShareCode(encodeShareCode(canonical))
+      router.push(`/p/${json.id}`)
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         setError(err.issues[0]?.message || 'Validation error')
@@ -115,10 +127,27 @@ export default function NewPromptPage() {
     }
   }
 
+  const bodyLength = form.body.length
+  const bodyRemaining = BODY_LIMIT - bodyLength
+
   return (
     <div className="mx-auto max-w-[900px] py-8">
       <h1 className="font-display text-2xl mb-4">New Prompt</h1>
       <form onSubmit={onSubmit} className="space-y-4">
+        <div
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-10000px', top: 'auto', opacity: 0 }}
+        >
+          <label htmlFor="gh-note-field" className="text-xs">Leave this field empty</label>
+          <input
+            id="gh-note-field"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={botField}
+            onChange={e => setBotField(e.target.value)}
+          />
+        </div>
         <div>
           <label className="block text-sm mb-1">Title</label>
           <input
@@ -135,7 +164,16 @@ export default function NewPromptPage() {
             value={form.body}
             onChange={e => setForm({ ...form, body: e.target.value })}
             placeholder="Paste the prompt..."
+            style={{ resize: 'none' }}
           />
+          <div className="mt-2 flex items-center justify-between text-sm text-[var(--gh-text-muted)]">
+            <span>Character count: {bodyLength.toLocaleString()} / {BODY_LIMIT.toLocaleString()}</span>
+            {bodyRemaining < 0 && (
+              <span className="text-red-400">
+                {Math.abs(bodyRemaining).toLocaleString()} over limit
+              </span>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-sm mb-1">Tags (comma separated)</label>

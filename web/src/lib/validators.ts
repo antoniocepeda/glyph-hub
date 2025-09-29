@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const PromptSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
-  body: z.string().min(1, 'Body is required').max(5000),
+  body: z.string().min(1, 'Body is required').max(7331),
   tags: z.array(z.string()).default([]),
   sourceUrl: z.string().url().nullable().optional().default(null),
   visibility: z.enum(['public', 'unlisted', 'private']).default('public'),
@@ -34,5 +34,4 @@ export function canonicalizeCollection(input: CollectionInput): CollectionInput 
     visibility: input.visibility || 'private',
   }
 }
-
 

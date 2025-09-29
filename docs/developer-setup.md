@@ -60,6 +60,13 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+# Server-side quick paste uses the Firebase Admin SDK. The recommended setup is
+# to run `gcloud auth application-default login` so the frameworks backend and
+# local development both pick up Application Default Credentials. If you need to
+# override the project id locally, set `FIREBASE_ADMIN_PROJECT_ID`.
+# (You can still point GOOGLE_APPLICATION_CREDENTIALS at a service account file
+# if preferred, but the project no longer expects a JSON string embedded in .env.)
+FIREBASE_ADMIN_PROJECT_ID=glyph-hub-5000
 ```
 
 We already ship a robust Firebase client in `web/src/lib/firebase.ts` (with persistence and SSR guards). The following is a simplified reference-only example:
@@ -170,7 +177,7 @@ service cloud.firestore {
 ```
 
 Project-specific rule additions (see `web/firebase.rules`):
-- Unauthenticated users can create only `public` or `unlisted` prompts with `ownerId == 'anon'` (validated fields required).
+- Unauthenticated visitors submit via `/api/quick-paste`, which persists prompts with `ownerId == null` and `createdByType == 'anonymous'`. Direct client writes still require authentication per the rules.
 - Signed-in users may perform stats-only updates with constraints (views/copies non-decreasing; likes can change by ±1).
 - Deletes are allowed by the owner or a designated superuser email.
 - Collections support collaborators with `viewer`/`editor` roles.

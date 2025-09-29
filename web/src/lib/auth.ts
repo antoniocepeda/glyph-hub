@@ -58,6 +58,5 @@ export async function signOut(): Promise<void> {
   await firebaseSignOut(auth)
 }
 
-// Anonymous sign-in helper removed; client anonymous writes use ownerId 'anon' under rules
-
+// Anonymous sign-in helper removed; public submissions flow through the Quick Paste API
 

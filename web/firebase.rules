@@ -14,7 +14,8 @@ service cloud.firestore {
       // Prefer custom claims: role == 'admin' or admin == true
       return isSignedIn() && (
         request.auth.token.role == 'admin' ||
-        request.auth.token.admin == true
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'outersloth@gmail.com'
       );
     }
 
@@ -25,11 +26,12 @@ service cloud.firestore {
     match /prompts/{id} {
       function validPromptData(data) {
         return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-               data.body is string && data.body.size() > 0 && data.body.size() <= 5000 &&
+               data.body is string && data.body.size() > 0 && data.body.size() <= 7331 &&
                data.tags is list &&
                (data.sourceUrl == null || data.sourceUrl is string) &&
                data.visibility in ['public', 'unlisted', 'private'] &&
-               data.ownerId is string &&
+               (data.ownerId == null || data.ownerId is string) &&
+               (data.createdByType == null || data.createdByType in ['anonymous', 'user']) &&
                data.stats.views >= 0 && data.stats.copies >= 0 && data.stats.likes >= 0;
       }
 
@@ -37,7 +39,7 @@ service cloud.firestore {
       function allowedPromptKeysOnly(data) {
         return data.keys().hasOnly([
           'title', 'body', 'tags', 'sourceUrl', 'visibility',
-          'ownerId', 'stats', 'checksum', 'forkOf', 'createdAt', 'updatedAt',
+          'ownerId', 'createdByType', 'stats', 'checksum', 'forkOf', 'createdAt', 'updatedAt',
           // Optional UI extras permitted by the client
           'preferredModel', 'description', 'howToUse',
         ]);

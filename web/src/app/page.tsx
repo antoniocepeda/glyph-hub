@@ -4,10 +4,6 @@ import { collection, doc as fsDoc, getDoc as fsGetDoc, getDocs, query, where } f
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { collection as fsCollection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { customAlphabet } from 'nanoid'
-import { computeChecksum } from '@/lib/checksum'
-import { canonicalizePrompt } from '@/lib/validators'
 
 type Prompt = {
   id: string
@@ -82,6 +78,8 @@ export default function Home() {
   )
 }
 
+const BODY_LIMIT = 7331
+
 function QuickPaste() {
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -95,6 +93,7 @@ function QuickPaste() {
   const [preferredModel, setPreferredModel] = useState('')
   const [description, setDescription] = useState('')
   const [howToUse, setHowToUse] = useState('')
+  const [botField, setBotField] = useState('')
 
   const canPrivate = !!getFirebaseAuth()?.currentUser
   useEffect(() => {
@@ -124,6 +123,9 @@ function QuickPaste() {
     loadPref()
   }, [])
 
+  const bodyLength = body.length
+  const bodyRemaining = BODY_LIMIT - bodyLength
+
   return (
     <div className="rounded-[12px] bg-[var(--gh-surface)] border border-[var(--gh-border)] p-4">
       <div className="flex items-center justify-between mb-2">
@@ -143,7 +145,28 @@ function QuickPaste() {
         value={body}
         onChange={e => setBody(e.target.value)}
         className="w-full min-h-[100px] rounded-[10px] bg-[var(--gh-bg-soft)] border border-[var(--gh-border)] px-3 py-2 text-sm"
+        style={{ resize: 'none' }}
       />
+      <div className="mt-2 flex items-center justify-between text-xs text-[var(--gh-text-muted)]">
+        <span>Character count: {bodyLength.toLocaleString()} / {BODY_LIMIT.toLocaleString()}</span>
+        {bodyRemaining < 0 && (
+          <span className="text-red-400">{Math.abs(bodyRemaining).toLocaleString()} over limit</span>
+        )}
+      </div>
+      <div
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-10000px', top: 'auto', opacity: 0 }}
+      >
+        <label htmlFor="gh-home-bot" className="text-xs">Leave this field empty</label>
+        <input
+          id="gh-home-bot"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={botField}
+          onChange={e => setBotField(e.target.value)}
+        />
+      </div>
       {advanced && (
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -242,42 +265,73 @@ function QuickPaste() {
             setErr(null)
             try {
               const vis = advanced ? visibility : 'public'
-              const user = getFirebaseAuth()?.currentUser
-              if (!user) {
-                setErr('Please sign in to save')
-                setSaving(false)
-                try { router.push('/login') } catch {}
+              const trimmedBody = body.trim()
+              if (!trimmedBody) {
+                setErr('Prompt body cannot be empty.')
                 return
               }
-                const db = getDb()
-                if (!db) throw new Error('No DB')
-                const id = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)()
-                const ref = doc(fsCollection(db, 'prompts'), id)
-                const tags = advanced ? tagsValue.split(',').map(t => t.trim()).filter(Boolean) : []
-                const src = advanced && sourceUrl.trim() ? sourceUrl.trim() : null
-                const extras: Record<string, unknown> = {}
-                if (advanced) {
-                  if (preferredModel.trim()) extras.preferredModel = preferredModel.trim()
-                  if (description.trim()) extras.description = description.trim()
-                  if (howToUse.trim()) extras.howToUse = howToUse.trim()
+
+              const tags = advanced ? tagsValue.split(',').map(t => t.trim()).filter(Boolean) : []
+              const src = advanced && sourceUrl.trim() ? sourceUrl.trim() : null
+              const extras: Record<string, unknown> = {}
+              if (advanced) {
+                if (preferredModel.trim()) extras.preferredModel = preferredModel.trim()
+                if (description.trim()) extras.description = description.trim()
+                if (howToUse.trim()) extras.howToUse = howToUse.trim()
+              }
+
+              const user = getFirebaseAuth()?.currentUser
+              const token = user ? await user.getIdToken() : null
+
+              const payload = {
+                title: title.trim() ? title : undefined,
+                body: trimmedBody,
+                tags,
+                sourceUrl: src ?? undefined,
+                visibility: vis,
+                ...extras,
+                honeypot: botField,
+              }
+
+              const headers: Record<string, string> = { 'content-type': 'application/json' }
+              if (token) headers.authorization = `Bearer ${token}`
+
+              const res = await fetch('/api/quick-paste', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+              })
+              if (!res.ok) {
+                const errJson = await res.json().catch(() => ({ error: 'Failed' }))
+                const msg = typeof errJson.error === 'string' ? errJson.error : 'Failed'
+                if (res.status === 429 && typeof errJson.retryAt === 'number') {
+                  const retry = new Date(errJson.retryAt)
+                  setErr(`Rate limited. Try again at ${retry.toLocaleTimeString()}.`)
+                } else if (msg === 'invalid_payload' || msg === 'invalid_prompt') {
+                  setErr('Check your prompt fields and try again.')
+                } else if (msg === 'rate_limited') {
+                  setErr('Too many submissions. Please slow down.')
+                } else if (msg === 'duplicate_prompt') {
+                  setErr('A similar prompt already exists. Consider forking it.')
+                } else if (msg === 'duplicate_check_failed') {
+                  setErr('Unable to verify duplicates right now. Please try again in a bit.')
+                } else if (msg === 'visibility_not_allowed') {
+                  setErr('Sign in to save private prompts.')
+                } else if (msg === 'content_not_allowed') {
+                  setErr('Content not allowed. Adjust your prompt and try again.')
+                } else if (msg === 'bot_detected') {
+                  setErr('Submission flagged as automated. Refresh and try again.')
+                } else {
+                  setErr(msg === 'server_unconfigured' ? 'Server is not ready for quick paste yet.' : 'Failed to save prompt.')
                 }
-                const canonical = canonicalizePrompt({
-                  title: title || 'Untitled',
-                  body: body.trim(),
-                  tags,
-                  sourceUrl: src,
-                  visibility: vis,
-                })
-                await setDoc(ref, {
-                  ...canonical,
-                  ownerId: user.uid,
-                  checksum: computeChecksum(canonical.body),
-                  stats: { views: 0, copies: 0, likes: 0 },
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                  ...extras,
-                })
-                router.push(`/p/${id}`)
+                return
+              }
+              const json = await res.json()
+              if (!json?.id) {
+                setErr('Unexpected server response.')
+                return
+              }
+              router.push(`/p/${json.id}`)
             } catch (e) {
               const msg = e instanceof Error ? e.message : 'Failed'
               setErr(msg)
