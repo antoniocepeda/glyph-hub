@@ -11,11 +11,9 @@ service cloud.firestore {
     }
 
     function isSuperUser() {
-      // Prefer custom claims: role == 'admin' or admin == true
       return isSignedIn() && (
         request.auth.token.role == 'admin' ||
-        request.auth.token.admin == true ||
-        request.auth.token.email == 'outersloth@gmail.com'
+        request.auth.token.admin == true
       );
     }
 
@@ -80,13 +78,16 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.ownerId) || isSuperUser();
     }
 
-    // Prompt versions
+    // Prompt versions: only the prompt owner can read/create versions
     match /prompts/{id}/versions/{versionId} {
-      allow read: if true;
-      allow create: if isSignedIn();
+      allow read: if isSignedIn() &&
+        get(/databases/$(database)/documents/prompts/$(id)).data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        get(/databases/$(database)/documents/prompts/$(id)).data.ownerId == request.auth.uid;
     }
 
     match /users/{uid} {
+      // displayName and bio are needed for public profile pages
       allow read: if true;
       allow create, update: if isOwner(uid);
     }
@@ -125,9 +126,9 @@ service cloud.firestore {
       allow create, update, delete: if collectionIsOwner(id) || isEditor(id);
     }
 
-    // User favorites: users/{uid}/favorites/{promptId}
+    // User favorites: only the owner can read/write their favorites
     match /users/{uid}/favorites/{promptId} {
-      allow read: if true; // favorites list can be public or later restricted
+      allow read: if isOwner(uid);
       allow create, update, delete: if isOwner(uid);
     }
 

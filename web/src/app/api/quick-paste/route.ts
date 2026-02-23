@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { customAlphabet } from 'nanoid'
 import { z } from 'zod'
 import { getAdminDb } from '@/lib/firebaseAdmin'
@@ -8,6 +8,7 @@ import { FieldValue, type Firestore } from 'firebase-admin/firestore'
 import { createHash } from 'node:crypto'
 import { getAuth } from 'firebase-admin/auth'
 import { containsBannedWords } from '@/lib/utils'
+import { apiError, apiSuccess } from '@/lib/api-response'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)
 
@@ -39,7 +40,8 @@ function getClientFingerprint(req: NextRequest): string {
   const parts = forwarded.split(',').map(p => p.trim()).filter(Boolean)
   const ip = parts[0] || req.ip || 'unknown'
   const ua = req.headers.get('user-agent') || 'unknown'
-  return createHash('sha256').update(ip).update('|').update(ua).digest('hex')
+  const accept = req.headers.get('accept-language') || ''
+  return createHash('sha256').update(ip).update('|').update(ua).update('|').update(accept).digest('hex')
 }
 
 async function enforceRateLimit(db: Firestore, key: string): Promise<void> {
@@ -88,7 +90,7 @@ async function enforceRateLimit(db: Firestore, key: string): Promise<void> {
 export async function POST(req: NextRequest) {
   const db = getAdminDb()
   if (!db) {
-    return NextResponse.json({ error: 'server_unconfigured' }, { status: 500 })
+    return apiError('server_unconfigured', 500)
   }
 
   const authUid = await resolveAuthenticatedUid(req)
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
     payload = QuickPasteSchema.parse(await req.json())
   } catch (error) {
     const msg = error instanceof z.ZodError ? error.issues[0]?.message || 'invalid_payload' : 'invalid_payload'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    return apiError(msg, 400)
   }
 
   const fingerprint = getClientFingerprint(req)
@@ -106,10 +108,10 @@ export async function POST(req: NextRequest) {
     await enforceRateLimit(db, fingerprint)
   } catch (error) {
     if (error instanceof RateLimitError) {
-      return NextResponse.json({ error: 'rate_limited', retryAt: error.retryAt }, { status: 429 })
+      return apiError('rate_limited', 429, { retryAt: error.retryAt })
     }
     console.error('[quick-paste] rate limit failed', error)
-    return NextResponse.json({ error: 'rate_limit_failed' }, { status: 500 })
+    return apiError('rate_limit_failed', 500)
   }
 
   const tags = Array.isArray(payload.tags)
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
 
   const requestedVisibility = payload.visibility ?? 'public'
   if (!authUid && requestedVisibility === 'private') {
-    return NextResponse.json({ error: 'visibility_not_allowed' }, { status: 403 })
+    return apiError('visibility_not_allowed', 403)
   }
   const finalVisibility = requestedVisibility
 
@@ -137,18 +139,18 @@ export async function POST(req: NextRequest) {
     canonical = canonicalizePrompt(PromptSchema.parse(canonicalInput))
   } catch (error) {
     const msg = error instanceof z.ZodError ? error.issues[0]?.message || 'invalid_prompt' : 'invalid_prompt'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    return apiError(msg, 400)
   }
 
   if (payload.honeypot && payload.honeypot.trim()) {
     console.warn('[quick-paste] Honeypot field flagged request')
-    return NextResponse.json({ error: 'bot_detected' }, { status: 400 })
+    return apiError('bot_detected', 400)
   }
 
   const bannedWord = containsBannedWords(`${canonical.title}\n${canonical.body}`)
   if (bannedWord) {
     console.warn('[quick-paste] Blocked banned term submission')
-    return NextResponse.json({ error: 'content_not_allowed' }, { status: 400 })
+    return apiError('content_not_allowed', 400)
   }
 
   const checksum = computeChecksum(canonical.body)
@@ -156,11 +158,11 @@ export async function POST(req: NextRequest) {
   try {
     const dup = await db.collection('prompts').where('checksum', '==', checksum).limit(1).get()
     if (!dup.empty) {
-      return NextResponse.json({ error: 'duplicate_prompt' }, { status: 409 })
+      return apiError('duplicate_prompt', 409)
     }
   } catch (error) {
     console.error('[quick-paste] duplicate check failed', error)
-    return NextResponse.json({ error: 'duplicate_check_failed' }, { status: 500 })
+    return apiError('duplicate_check_failed', 500)
   }
 
   const extras: Record<string, unknown> = {}
@@ -182,10 +184,10 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('[quick-paste] failed to save prompt', error)
-    return NextResponse.json({ error: 'save_failed' }, { status: 500 })
+    return apiError('save_failed', 500)
   }
 
-  return NextResponse.json({ id })
+  return apiSuccess({ id })
 }
 
 async function resolveAuthenticatedUid(req: NextRequest): Promise<string | null> {

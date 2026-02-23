@@ -1,15 +1,73 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import Replicate from 'replicate'
-
-// Streaming chat proxy using Replicate SDK
-// Body: { model, messages, system?, temperature?, maxTokens?, apiKey? }
-// SSE events: ready, debug, token, done, error
+import { createHash } from 'node:crypto'
+import { getAdminDb } from '@/lib/firebaseAdmin'
+import { FieldValue } from 'firebase-admin/firestore'
+import { RATE_LIMIT } from '@/lib/constants'
+import { apiError } from '@/lib/api-response'
 
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string }
 
+const MINUTE_MS = 60_000
+const DAY_MS = 86_400_000
+const MAX_MESSAGES = 50
+
+function getChatFingerprint(req: NextRequest): string {
+  const forwarded = req.headers.get('x-forwarded-for') || ''
+  const parts = forwarded.split(',').map(p => p.trim()).filter(Boolean)
+  const ip = parts[0] || req.ip || 'unknown'
+  const ua = req.headers.get('user-agent') || 'unknown'
+  const accept = req.headers.get('accept-language') || ''
+  return createHash('sha256').update(ip).update('|').update(ua).update('|').update(accept).digest('hex')
+}
+
+async function enforceChatRateLimit(fingerprint: string): Promise<void> {
+  const db = getAdminDb()
+  if (!db) return
+  const now = Date.now()
+  const minuteWindow = Math.floor(now / MINUTE_MS)
+  const dayWindow = Math.floor(now / DAY_MS)
+  const ref = db.collection('rate_limits').doc(`chat:${fingerprint}`)
+
+  await db.runTransaction(async tx => {
+    const snap = await tx.get(ref)
+    let minuteCount = 0
+    let dayCount = 0
+    let storedMinuteWindow = minuteWindow
+    let storedDayWindow = dayWindow
+
+    if (snap.exists) {
+      const data = snap.data() as {
+        minuteWindow?: number; minuteCount?: number
+        dayWindow?: number; dayCount?: number
+      }
+      storedMinuteWindow = data.minuteWindow ?? minuteWindow
+      storedDayWindow = data.dayWindow ?? dayWindow
+      minuteCount = storedMinuteWindow === minuteWindow ? (data.minuteCount ?? 0) : 0
+      dayCount = storedDayWindow === dayWindow ? (data.dayCount ?? 0) : 0
+    }
+
+    if (minuteCount >= RATE_LIMIT.CHAT_PER_MINUTE) {
+      throw new RateLimitError((storedMinuteWindow + 1) * MINUTE_MS)
+    }
+    if (dayCount >= RATE_LIMIT.CHAT_PER_DAY) {
+      throw new RateLimitError((storedDayWindow + 1) * DAY_MS)
+    }
+
+    tx.set(ref, {
+      minuteWindow, minuteCount: minuteCount + 1,
+      dayWindow, dayCount: dayCount + 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+}
+
+class RateLimitError extends Error {
+  constructor(public readonly retryAt: number) { super('rate_limited') }
+}
+
 function buildPrompt(messages: Msg[], _system?: string): string {
-  // Use the latest user message and cue assistant
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (m && m.role === 'user' && m.content?.trim()) {
@@ -22,17 +80,31 @@ function buildPrompt(messages: Msg[], _system?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { model, messages, system, temperature, maxTokens, apiKey } = await req.json()
+    const body = await req.json()
+    const { model, messages, system, temperature, maxTokens } = body
     if (!model || typeof model !== 'string') {
-      return NextResponse.json({ error: 'model required' }, { status: 400 })
+      return apiError('model required', 400)
     }
     if (!Array.isArray(messages)) {
-      return NextResponse.json({ error: 'messages array required' }, { status: 400 })
+      return apiError('messages array required', 400)
+    }
+    if (messages.length > MAX_MESSAGES) {
+      return apiError('too many messages', 400)
     }
 
-    const token = (apiKey as string) || process.env['REPLICATE_API_TOKEN']
+    const fingerprint = getChatFingerprint(req)
+    try {
+      await enforceChatRateLimit(fingerprint)
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        return apiError('rate_limited', 429, { retryAt: error.retryAt })
+      }
+      console.error('[chat] rate limit check failed', error)
+    }
+
+    const token = process.env['REPLICATE_API_TOKEN']
     if (!token) {
-      return NextResponse.json({ error: 'Server missing REPLICATE_API_TOKEN' }, { status: 500 })
+      return apiError('Server missing REPLICATE_API_TOKEN', 500)
     }
 
     const prompt = buildPrompt(messages as Msg[], typeof system === 'string' ? system : undefined)
@@ -120,21 +192,21 @@ export async function POST(req: NextRequest) {
           send('ready', 'ok')
           if (DEBUG) send('debug', 'route:sdk')
 
-          const asText = (v: any): string => {
+          const asText = (v: unknown): string => {
             if (v == null) return ''
             if (typeof v === 'string') return v
-            if (Array.isArray(v)) return v.map(asText).join('')
+            if (Array.isArray(v)) return v.map((item: unknown) => asText(item)).join('')
             try { return JSON.stringify(v) } catch { return String(v) }
           }
 
           const runNonStreaming = async () => {
             try {
               if (DEBUG) send('debug', 'fallback:non-stream')
-              const pred = await (replicate as any).predictions.create({ model, input })
+              const pred = await (replicate as unknown as { predictions: { create: (opts: Record<string, unknown>) => Promise<Record<string, unknown>> } }).predictions.create({ model, input })
               const id: string = pred?.id
               let attempts = 0
               while (attempts++ < 120) { // ~2 minutes max
-                const cur = await (replicate as any).predictions.get(id)
+                const cur = await (replicate as unknown as { predictions: { get: (id: string) => Promise<Record<string, unknown>> } }).predictions.get(id)
                 const status = cur?.status
                 if (status === 'succeeded' || status === 'completed') {
                   const text = asText(cur?.output)
@@ -156,13 +228,13 @@ export async function POST(req: NextRequest) {
           }
 
           // Prefer SDK stream helper; fall back to predictions.create(stream) then non-stream
-          let iter: AsyncIterable<any> | null = null
+          let iter: AsyncIterable<Record<string, unknown>> | null = null
           try {
-            iter = await (replicate as any).stream(model, { input })
+            iter = await (replicate as unknown as { stream: (model: string, opts: { input: Record<string, unknown> }) => Promise<AsyncIterable<Record<string, unknown>>> }).stream(model, { input })
             if (DEBUG) send('debug', 'sdk.stream')
           } catch (e) {
             try {
-              const prediction = await (replicate as any).predictions.create({ model, input, stream: true })
+              const prediction = await (replicate as unknown as { predictions: { create: (opts: Record<string, unknown>) => Promise<AsyncIterable<Record<string, unknown>>> } }).predictions.create({ model, input, stream: true })
               iter = prediction as AsyncIterable<any>
               if (DEBUG) send('debug', 'predictions.create(stream)')
             } catch (e2) {
@@ -173,12 +245,12 @@ export async function POST(req: NextRequest) {
           }
 
           let doneSent = false
-          for await (const event of (iter as AsyncIterable<any>)) {
+          for await (const event of iter) {
             const type = (event && (event.type || event.event)) as string | undefined
             if (!type) continue
             if (type === 'output') {
               const text = typeof event.output === 'string' ? event.output
-                : Array.isArray(event.output) ? (event.output as any[]).join('')
+                : Array.isArray(event.output) ? (event.output as unknown[]).map(String).join('')
                 : typeof event.data === 'string' ? event.data : ''
               if (text) emitSuffix(text)
             } else if (type === 'delta' || type === 'token') {
@@ -187,7 +259,8 @@ export async function POST(req: NextRequest) {
             } else if (type === 'completed' || type === 'done') {
               if (!doneSent) { send('done', 'done'); doneSent = true }
             } else if (type === 'error') {
-              const msg = (event.error?.message || event.message || '').toString()
+              const errObj = event.error as Record<string, unknown> | undefined
+              const msg = (errObj?.message || event.message || '').toString()
               if (/streaming not supported/i.test(msg)) {
                 // Fallback on the fly
                 await runNonStreaming()
@@ -218,6 +291,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'bad request'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    return apiError(msg, 400)
   }
 }

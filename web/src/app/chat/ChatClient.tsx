@@ -128,7 +128,7 @@ export default function ChatClient() {
         if (mode === 'system') setSystem(d.body || '')
         if (mode === 'user') setInput(d.body || '')
       }
-    }).catch(() => {})
+    }).catch((e) => console.warn('[chat] Failed to load seed prompt', e))
   }, [pid, mode])
 
   // Load existing chat if cid provided
@@ -140,7 +140,7 @@ export default function ChatClient() {
       try {
         const snap = await getDoc(doc(db, 'chats', cid))
         if (snap.exists()) {
-          const d = snap.data() as any
+          const d = snap.data() as { model?: string; system?: string; messages?: Message[] }
           setChatId(snap.id)
           if (typeof d.model === 'string') {
             if (DEFAULT_CURATED_SLUGS.has(d.model)) {
@@ -157,7 +157,9 @@ export default function ChatClient() {
             setMessages(d.messages as Message[])
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[chat] Failed to load chat', e)
+      }
     }
     loadChat()
   }, [cid])
@@ -196,7 +198,9 @@ export default function ChatClient() {
             }
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[chat] Failed to fetch models from API', e)
+      }
       if (!loaded) {
         setCurated(DEFAULT_CURATED)
       }
@@ -205,17 +209,19 @@ export default function ChatClient() {
         const uid = getFirebaseAuth()?.currentUser?.uid
         if (db && uid) {
           const favSnaps = await getDocs(collection(db, 'users', uid, 'models', 'favorites', 'items'))
-          setFavorites(favSnaps.docs.map(d => (d.data() as any).slug).filter(Boolean))
+          setFavorites(favSnaps.docs.map(d => (d.data() as { slug?: string }).slug).filter((s): s is string => Boolean(s)))
           const chatSnaps = await getDocs(query(collection(db, 'chats'), where('ownerId', '==', uid), orderBy('updatedAt', 'desc'), limit(20)))
           const seen = new Set<string>()
           for (const d of chatSnaps.docs) {
-            const m = (d.data() as any).model
+            const m = (d.data() as { model?: string }).model
             if (typeof m === 'string') seen.add(m)
             if (seen.size >= 10) break
           }
           setRecent(Array.from(seen))
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[chat] Failed to load favorites/recents', e)
+      }
     }
     loadModels()
   }, [])
@@ -242,7 +248,9 @@ export default function ChatClient() {
           setModelHint('')
         }
       } catch (e) {
-        if ((e as any).name !== 'AbortError') {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        if (e instanceof Error && e.name === 'AbortError') return
+        {
           setModelValid(null)
           setModelHint('')
         }

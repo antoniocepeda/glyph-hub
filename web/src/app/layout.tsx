@@ -7,6 +7,7 @@ import { AuthMenu as ClientAuthMenu } from "@/components/AuthMenu";
 import AnalyticsBoot from "@/components/AnalyticsBoot";
 import { AuthInit } from "@/components/AuthInit";
 import { NavLinks } from "@/components/NavLinks";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: 'swap' });
 const rajdhani = Rajdhani({ variable: "--font-rajdhani", weight: ["600","700"], subsets: ["latin"], display: 'swap' });
@@ -84,7 +85,7 @@ export default function RootLayout({
               </div>
             </div>
           </header>
-          <main className="py-6 flex-1">{children}</main>
+          <main className="py-6 flex-1"><ErrorBoundary>{children}</ErrorBoundary></main>
           <footer
             className="mt-auto border-t border-[var(--gh-border)] text-[var(--gh-text-muted)]"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}

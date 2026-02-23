@@ -6,9 +6,7 @@ import { PromptSchema, type PromptInput, canonicalizePrompt } from '@/lib/valida
 import { getDb, getFirebaseAuth } from '@/lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { encodeShareCode } from '@/lib/share-code'
-// Anonymous submissions flow through the Quick Paste API
-
-const BODY_LIMIT = 7331
+import { BODY_LIMIT } from '@/lib/constants'
 
 export default function NewPromptPage() {
   const router = useRouter()
@@ -36,7 +34,9 @@ export default function NewPromptPage() {
             setForm(f => ({ ...f, visibility: nextVis }))
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[new] Failed to load visibility preference', e)
+      }
     }
     loadPref()
   }, [])
@@ -58,7 +58,9 @@ export default function NewPromptPage() {
           visibility: draft.visibility || 'public',
         }
       })
-    } catch {}
+    } catch (e) {
+      console.debug('[new] No draft to restore', e)
+    }
   }, [])
 
   async function onSubmit(e: React.FormEvent) {

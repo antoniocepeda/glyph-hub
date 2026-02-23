@@ -149,6 +149,13 @@
   box-shadow: 0 0 0 1px rgba(0, 240, 255, .35), 0 0 24px rgba(162, 89, 255, .25);
 }
 
+.gh-gradient-text {
+  background: linear-gradient(135deg, #00F0FF 0%, #A259FF 50%, #E6B450 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .font-display { font-family: var(--font-rajdhani), ui-sans-serif, system-ui; }
 .font-sans { font-family: var(--font-inter), ui-sans-serif, system-ui; }
 

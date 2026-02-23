@@ -42,7 +42,7 @@ export default function ChatsPage() {
         limit(50),
       ))
       const items: Chat[] = snaps.docs.map(d => {
-        const data = d.data() as any
+        const data = d.data() as { title?: string; model?: string; updatedAt?: { toDate?: () => Date }; messages?: Chat['messages'] }
         const ts = data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt instanceof Date ? data.updatedAt : undefined)
         return {
           id: d.id,
@@ -63,9 +63,6 @@ export default function ChatsPage() {
 
   useEffect(() => {
     load()
-    // Note: not subscribing to auth changes; rely on manual refresh or navigation
-    // to avoid adding auth listeners here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -113,7 +110,9 @@ export default function ChatsPage() {
                     if (!db) return
                     await deleteDoc(doc(db, 'chats', c.id))
                     setChats(prev => prev.filter(x => x.id !== c.id))
-                  } catch {}
+                  } catch (e) {
+                    console.error('[chats] Failed to delete chat', e)
+                  }
                 }}
               >Delete</button>
             </div>
